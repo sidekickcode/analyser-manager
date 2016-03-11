@@ -10,16 +10,36 @@ var fs = require('fs-extra');
 var path = require('path');
 
 var AnalyserManger = require('../../analyser-manager');
-var am = new AnalyserManger();
+var am = new AnalyserManger(path.join(__dirname, '/fixtures')); //override with test fixture dir
+
+describe('install location', function() {
+  var installLocation = require('../installLocation');
+  var platform = require('process').platform;
+
+  switch(platform){
+    case "win32":
+      expect(installLocation()).to.equal('');
+      break;
+    case "darwin":
+      var re =/\/Library\/Application Support\/sidekick\/analysers$/i;
+      expect(installLocation()).to.match(re);
+      break;
+    case "win32":
+      expect(installLocation()).to.equal('');
+      break;
+  }
+});
 
 describe('analyser manager', function() {
 
   describe('positive tests', function() {
 
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
+    var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'sidekick-david');
 
     before(function(){
       fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
+      fs.removeSync(goodAnalyserDir); //in case you quit tests in IDE
       fs.mkdirSync(testAnalyserDir);
       fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), JSON.stringify({"shortName": "test"}));
     });
@@ -57,6 +77,7 @@ describe('analyser manager', function() {
 
     after(function(){
       fs.removeSync(testAnalyserDir);
+      fs.removeSync(goodAnalyserDir);
     });
 
   });

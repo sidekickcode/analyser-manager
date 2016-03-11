@@ -7,8 +7,6 @@
 
 const fs = require('fs');
 const path = require('path');
-const process = require('process');
-const os = require('os');
 
 const Promise = require('bluebird');
 const jsonWithComments = require('strip-json-comments');
@@ -23,29 +21,33 @@ const readFile = Promise.promisify(fs.readFile);
 
 module.exports = exports = AnalyserManager;
 
-function AnalyserManager(){
+function AnalyserManager(analyserInstallLocation){
   var self = this;
 
   EventEmitter.call(self);
 
-  self.ANALYSER_INSTALL_DIR = getAnalyserInstallDir();
+  self.ANALYSER_INSTALL_DIR = analyserInstallLocation;
 
   function init(){
-    exists(self.ANALYSER_INSTALL_DIR).then(function(stat){
-      canAccess(self.ANALYSER_INSTALL_DIR, fs.W_OK).then(function(){
-        //all good
-      }, function(err){
-        throw new Error('Unable to write to sidekick analyser directory', err);
-      });
-    }), function(err){
+    exists(self.ANALYSER_INSTALL_DIR)
+      .then(function(stat){
+        canAccess(self.ANALYSER_INSTALL_DIR, fs.W_OK)
+          .then(function(){
+            //all good
+          }, function(err){
+            throw new Error('Unable to write to sidekick analyser directory', err);
+          });
+    }, function(err){
       console.log('creating sidekick analyser dir..');
       try {
         fs.mkdirSync(self.ANALYSER_INSTALL_DIR);
+        //all good
       } catch(err){
         throw new Error('Unable to create sidekick analyser directory', err);
       }
-    }
+    })
   }
+  init();
 
   /**
    *
@@ -59,15 +61,15 @@ function AnalyserManager(){
       exists(pathToAnalyser)
         .then(function(fileStat){
           fetchAnalyserConfig(analyserName, true)
-              .then(function(configObj){
-                resolve({path: pathToAnalyser, config: configObj});
-              }, reject);
+            .then(function(configObj){
+              resolve({path: pathToAnalyser, config: configObj});
+            }, reject);
         }, function(err){
           if(err.code === 'ENOENT'){
             fetchAnalyserConfig(analyserName, false)
-                .then(function(configObj){
-                  resolve({path: pathToAnalyser, config: configObj});
-                }, reject);
+              .then(function(configObj){
+                resolve({path: pathToAnalyser, config: configObj});
+              }, reject);
           } else {
             reject(new Error('Cannot read analyser install dir', err));
           }
@@ -93,15 +95,15 @@ function AnalyserManager(){
         var fileName = path.join(self.ANALYSER_INSTALL_DIR, analyserName, 'config.json');
 
         readFile(fileName, {encoding: 'utf8'})
-            .then(function(fileContents){
-              try {
-                resolve(JSON.parse(jsonWithComments(fileContents)));
-              } catch(err){
-                reject(new Error(`Unable to parse config file for analyser: '${analyserName}'`, err));
-              }
-            }, function(err){
-              reject(new Error(`Unable to read config file for analyser: '${analyserName}'`, err));
-            });
+          .then(function(fileContents){
+            try {
+              resolve(JSON.parse(jsonWithComments(fileContents)));
+            } catch(err){
+              reject(new Error(`Unable to parse config file for analyser: '${analyserName}'`, err));
+            }
+          }, function(err){
+            reject(new Error(`Unable to read config file for analyser: '${analyserName}'`, err));
+          });
       });
     }
   }
@@ -146,27 +148,6 @@ function AnalyserManager(){
       }
     });
   }
-
-  /**
-   * Returns the location of our analysers
-   * %APPDATA% on Windows
-   * $XDG_CONFIG_HOME or ~/.config on Linux
-   * ~/Library/Application Support on OS X
-   * @returns {string}
-   */
-  function getAnalyserInstallDir(){
-    var currentOs = process.platform;
-
-    switch (currentOs) {
-      case 'win32':
-        return `${process.env.APPDATA}\\sidekick\\analysers`;
-      case 'darwin':
-        return `${os.homedir()}/Library/Application Support/sidekick/analysers`;
-      case 'linux':
-        return '/var/local/sidekick/analysers';
-      default :
-        throw new Error(`Unsupported os: ${currentOs}`);
-    }
-  }
 }
+
 inherits(AnalyserManager, EventEmitter);
