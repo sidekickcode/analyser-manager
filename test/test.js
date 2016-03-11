@@ -34,6 +34,8 @@ describe('analyser manager', function() {
 
   describe('positive tests', function() {
 
+    this.timeout(30000);
+
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
     var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'sidekick-david@1.0.5');//FIXME should not be version specific
 

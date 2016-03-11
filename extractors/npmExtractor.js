@@ -88,7 +88,6 @@ function NpmExtractor(){
       var write = tgz().createWriteStream(analyserDir);
 
       write.on('finish', function(){
-        fs.unlink(tarball); //remove tarball
         function puts(error, stdout, stderr) {
           if(error){
             reject(error);
@@ -97,12 +96,11 @@ function NpmExtractor(){
             resolve();
           }
         }
+        fs.unlink(tarball); //remove tarball
         exec(`cd ${analyserDir}/package && ./bin/install`, puts); //run bin/install
       });
-
-      write.on('error', function(err) {
-        reject(err);
-      });
+      read.on('error', reject);
+      write.on('error', reject);
 
       read.pipe(write); //unzip then untar
     });
