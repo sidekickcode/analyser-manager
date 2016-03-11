@@ -1,6 +1,6 @@
 /**
  * Used to fetch a Sidekick analyser from a registry and install it.
- * Emits events if downloading [downloading, downloaded]
+ * Emits events if downloading [downloading, downloaded, installed]
  */
 
 "use strict";
@@ -15,6 +15,7 @@ const jsonWithComments = require('strip-json-comments');
 const request = require('request');
 const semver = require('semver');
 
+const installLocation = require('./installLocation');
 const npmExtractor = require('./extractors/npmExtractor');
 
 const exists = Promise.promisify(fs.stat);
@@ -23,8 +24,18 @@ const readFile = Promise.promisify(fs.readFile);
 
 module.exports = exports = AnalyserManager;
 
+/**
+ * Create instance
+ * @param analyserInstallLocation (optional)
+ * @constructor
+ */
 function AnalyserManager(analyserInstallLocation){
   var self = this;
+
+  //if the installation location if the analysers is not specified, use detault.
+  if(!analyserInstallLocation){
+    analyserInstallLocation = installLocation();
+  }
 
   EventEmitter.call(self);
 

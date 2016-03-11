@@ -13,21 +13,27 @@ var AnalyserManger = require('../../analyser-manager');
 var am = new AnalyserManger(path.join(__dirname, '/fixtures')); //override with test fixture dir
 
 describe('install location', function() {
-  var installLocation = require('../installLocation');
-  var platform = require('process').platform;
 
-  switch(platform){
-    case "win32":
-      expect(installLocation()).to.equal('');
-      break;
-    case "darwin":
-      var re =/\/Library\/Application Support\/sidekick\/analysers$/i;
-      expect(installLocation()).to.match(re);
-      break;
-    case "win32":
-      expect(installLocation()).to.equal('');
-      break;
-  }
+  it('gets the correct paths', function(){
+    var installLocation = require('../installLocation');
+    var platform = require('process').platform;
+
+    switch(platform){
+      case "win32":
+        var re =/\\\\sidekick\\\\analysers$/i;
+        expect(installLocation()).to.match(re);
+        break;
+      case "darwin":
+        var re =/\/Library\/Application Support\/sidekick\/analysers$/i;
+        expect(installLocation()).to.match(re);
+        break;
+      case "linux":
+        var re =/\/var\/local\/sidekick\/analysers$/i;
+        expect(installLocation()).to.match(re);
+        break;
+    }
+  });
+
 });
 
 describe('analyser manager', function() {
@@ -37,11 +43,11 @@ describe('analyser manager', function() {
     this.timeout(30000);
 
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
-    var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'sidekick-david@1.0.5');//FIXME should not be version specific
+    var goodVersion;
 
     before(function(){
-      fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
-      fs.removeSync(goodAnalyserDir); //in case you quit tests in IDE
+      //fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
+      //fs.removeSync(goodAnalyserDir); //in case you quit tests in IDE
       fs.mkdirSync(testAnalyserDir);
       fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), JSON.stringify({"shortName": "test"}));
     });
@@ -70,6 +76,8 @@ describe('analyser manager', function() {
       am.on('installed', installed);
 
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
+
+        goodVersion = analyserConfig.config.version;
         expect(analyserConfig).to.have.property('path');
         expect(analyserConfig).to.have.property('config');
         expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
@@ -82,6 +90,7 @@ describe('analyser manager', function() {
     });
 
     after(function(){
+      var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
       fs.removeSync(testAnalyserDir);
       fs.removeSync(goodAnalyserDir);
     });

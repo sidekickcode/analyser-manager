@@ -28,4 +28,4 @@ module.exports = exports = function getAnalyserInstallDir(){
     default :
       throw new Error(`Unsupported os: ${currentOs}`);
   }
-}
+};

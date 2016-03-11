@@ -3,4 +3,5 @@ node_js:
   - "5.1"
 
 notifications:
+  email: false
   slack: we-are-sidekick:GeIT5wtuKMLImpFXYHWzIGzI
