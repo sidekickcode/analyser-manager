@@ -9,13 +9,15 @@
   "dependencies": {
     "bluebird": "^3.3.4",
     "request": "^2.69.0",
+    "semver": "^5.1.0",
     "strip-json-comments": "^2.0.1"
   },
   "devDependencies": {
     "chai": "^3.5.0",
     "chai-as-promised": "^5.2.0",
     "fs-extra": "^0.26.5",
-    "mocha": "^2.4.5"
+    "mocha": "^2.4.5",
+    "sinon": "^1.17.3"
   },
   "scripts": {
     "test": "mocha"

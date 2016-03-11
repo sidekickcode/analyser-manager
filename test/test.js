@@ -4,10 +4,13 @@ var expect = chai.expect;
 var chaiAsPromised = require("chai-as-promised");
 chai.use(chaiAsPromised);
 
+var sinon = require('sinon');
+
 var fs = require('fs-extra');
 var path = require('path');
 
-var am = require('../../analyser-manager');
+var AnalyserManger = require('../../analyser-manager');
+var am = new AnalyserManger();
 
 describe('analyser manager', function() {
 
@@ -32,13 +35,23 @@ describe('analyser manager', function() {
       });
     });
 
-    it('installs an analyser and loads the config', function() {
+    it('installs an analyser and loads the config', function(done) {
       var analyserName = 'sidekick-david';
+
+      var downloading = sinon.spy();
+      am.on('downloading', downloading);
+
+      var downloaded = sinon.spy();
+      am.on('downloaded', downloaded);
 
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
         expect(analyserConfig).to.have.property('path');
         expect(analyserConfig).to.have.property('config');
         expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
+
+        expect(downloading.called).to.be.true;
+        expect(downloaded.called).to.be.true;
+        done();
       });
     });
 
@@ -55,17 +68,20 @@ describe('analyser manager', function() {
     before(function(){
       fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
       fs.mkdirSync(testAnalyserDir);
-      //fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), JSON.stringify({"shortName": "test"}));
     });
 
     it('fails to install for an unknown analyser', function(done) {
       var analyserName = 'rubbish-subbish-analyser';
+
+      var downloading = sinon.spy();
+      am.on('downloading', downloading);
 
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
         expect(err).to.have.property('message', 'Unknown analyser: ' + analyserName);
+        expect(downloading.called).to.be.true;
         done();
       });
     });
@@ -74,13 +90,35 @@ describe('analyser manager', function() {
       var analyserName = 'test-analyser';
 
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
-        assert.fail('Should fail for unknown analyser: ' + analyserName);
+        assert.fail('Should fail when no analyser config file.');
         done();
       }, function(err){
         expect(err).to.have.property('message', `Unable to read config file for analyser: '${analyserName}'`);
         done();
       });
     });
+
+    it('fails when the config file contains no usable config', function(done) {
+      var analyserName = 'test-analyser';
+
+      fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), 'just some text');
+
+      am.fetchAnalyser(analyserName).then(function(analyserConfig){
+        assert.fail('Should fail when the config file contains garbage.');
+        done();
+      }, function(err){
+        expect(err).to.have.property('message', `Unable to parse config file for analyser: '${analyserName}'`);
+        done();
+      });
+    });
+
+/*    it('fails when we dont have write permission for the analyser dir', function(done) {
+      fs.chmodSync(am.ANALYSER_INSTALL_DIR, 0755);
+      try {
+        var newAM = require('../../analyser-manager');
+      } catch(err){
+      }
+    });*/
 
     after(function(){
       fs.removeSync(testAnalyserDir);
