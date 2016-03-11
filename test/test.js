@@ -35,7 +35,7 @@ describe('analyser manager', function() {
   describe('positive tests', function() {
 
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
-    var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'sidekick-david');
+    var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'sidekick-david@1.0.5');//FIXME should not be version specific
 
     before(function(){
       fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
@@ -64,6 +64,9 @@ describe('analyser manager', function() {
       var downloaded = sinon.spy();
       am.on('downloaded', downloaded);
 
+      var installed = sinon.spy();
+      am.on('installed', installed);
+
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
         expect(analyserConfig).to.have.property('path');
         expect(analyserConfig).to.have.property('config');
@@ -71,6 +74,7 @@ describe('analyser manager', function() {
 
         expect(downloading.called).to.be.true;
         expect(downloaded.called).to.be.true;
+        expect(installed.called).to.be.true;
         done();
       });
     });
@@ -94,15 +98,11 @@ describe('analyser manager', function() {
     it('fails to install for an unknown analyser', function(done) {
       var analyserName = 'rubbish-subbish-analyser';
 
-      var downloading = sinon.spy();
-      am.on('downloading', downloading);
-
       am.fetchAnalyser(analyserName).then(function(analyserConfig){
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
         expect(err).to.have.property('message', 'Unknown analyser: ' + analyserName);
-        expect(downloading.called).to.be.true;
         done();
       });
     });

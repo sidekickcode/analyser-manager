@@ -7,13 +7,15 @@
 
 const fs = require('fs');
 const path = require('path');
+const EventEmitter = require('events');
+const inherits = require('util').inherits;
 
 const Promise = require('bluebird');
 const jsonWithComments = require('strip-json-comments');
 const request = require('request');
 const semver = require('semver');
-const EventEmitter = require('events');
-const inherits = require('util').inherits;
+
+const npmExtractor = require('./extractors/npmExtractor');
 
 const exists = Promise.promisify(fs.stat);
 const canAccess = Promise.promisify(fs.access);
@@ -50,7 +52,7 @@ function AnalyserManager(analyserInstallLocation){
   init();
 
   /**
-   *
+   * Fetch and analyser object to be run
    * @param analyser
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
@@ -78,7 +80,7 @@ function AnalyserManager(analyserInstallLocation){
   };
 
   /**
-   * Fetch and analyser from sidekick central
+   * Fetch an analyser config from sidekick central
    * @param analyserName
    */
   function fetchAnalyserConfig(analyserName, isAlreadyInstalled) {
@@ -109,24 +111,28 @@ function AnalyserManager(analyserInstallLocation){
   }
 
   function installAnalyser(analyserName){
-    self.emit('downloading');
     return new Promise(function(resolve, reject){
       fetchAnalyserList()
         .then(function(ALL_ANALYSERS){
           var analyserConfig = ALL_ANALYSERS[analyserName];
           if(analyserConfig){
-            self.emit('downloaded');
             var config = analyserConfig.config; //strip the wrapper which includes registry etc..
             var version = config.version;
             if(semver(version)){
-              //store the analyser config
-              var newAnalyserDir = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}`);
-              //var newAnalyserDir = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${version}`);
-              fs.mkdirSync(newAnalyserDir);
-              fs.writeFileSync(path.join(newAnalyserDir, 'config.json'), JSON.stringify(config));
-              resolve(config);
-            } else {
-              reject(new Error(`Invalid version '${version}' specified for analyser '${analyserName}`));
+              if(analyserConfig.registry === 'npm'){
+                var npm = new npmExtractor();
+
+                npm.on('downloading', function(){self.emit('downloading')});
+                npm.on('downloaded', function(){self.emit('downloaded')});
+                npm.on('installed', function(){self.emit('installed')});
+
+                npm.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
+                .then(function(){
+                  resolve(config);  //return the newly installed analyser config
+                }, function(err){
+                  reject(err);  //unable to install analyser
+                });
+              }
             }
           } else {
             reject(new Error(`Unknown analyser: ${analyserName}`));
