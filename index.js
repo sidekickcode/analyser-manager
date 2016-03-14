@@ -63,23 +63,31 @@ function AnalyserManager(analyserInstallLocation){
   init();
 
   /**
-   * Fetch and analyser object to be run
-   * @param analyser
+   * Fetch and analyser object to be run (its config and path to its executable).
+   * Will install the analyser for a registry if not found on the local install.
+   * If no version specified and the analyser does not exist locally, it will install the latest version.
+   * @param analyser the name of the analyser to fetch the config for
+   * @param version (optional) the specific version of the analyser to return data for.
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
-  self.fetchAnalyser = function(analyserName){
+  self.fetchAnalyser = function(analyserName, version){
     var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, analyserName);
 
     return new Promise(function(resolve, reject){
       exists(pathToAnalyser)
         .then(function(fileStat){
-          fetchAnalyserConfig(analyserName, true)
+          fetchAnalyserConfig(analyserName, version, true)
             .then(function(configObj){
               resolve({path: pathToAnalyser, config: configObj});
             }, reject);
         }, function(err){
           if(err.code === 'ENOENT'){
-            fetchAnalyserConfig(analyserName, false)
+
+            if(!version) {
+              version = 'latest';
+            }
+
+            fetchAnalyserConfig(analyserName, version, false)
               .then(function(configObj){
                 resolve({path: pathToAnalyser, config: configObj});
               }, reject);
@@ -90,16 +98,42 @@ function AnalyserManager(analyserInstallLocation){
     });
   };
 
+  self.isNewerVersionAvailable = function(analyserName, version){
+    return new Promise(function(resolve, reject){
+      getAllAnalyserEntry(analyserName)
+        .then(function(analyserConfig){
+          if(analyserConfig.registry === 'npm') {
+            var npm = new npmExtractor();
+            npm.getLatestVersion(analyserName)
+              .then(function(latestVersion){
+                if(semver.valid(version) && semver.valid(latestVersion)){
+                  resolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
+                } else {
+                  if(semver.valid(latestVersion)){
+                    //we were pased a garbage version - still useful to say what the latest version is
+                    resolve({"latest": latestVersion});
+                  } else {
+                    reject(new Error(`Invalid version '${version}' for analyser '${analyserName}'`));
+                  }
+                }
+              }, reject)
+          }
+        }, reject)
+    });
+  };
+
   /**
    * Fetch an analyser config from sidekick central
    * @param analyserName
+   * @param version the version of the analyser to fetch config for
+   * @param isAlreadyInstalled boolean - is the analyser already on the local machine
    */
-  function fetchAnalyserConfig(analyserName, isAlreadyInstalled) {
+  function fetchAnalyserConfig(analyserName, version, isAlreadyInstalled) {
     return new Promise(function(resolve, reject){
       if(isAlreadyInstalled) {
         readAnalyserConfig(analyserName).then(resolve, reject);
       } else {
-        installAnalyser(analyserName).then(resolve, reject);
+        installAnalyser(analyserName, version).then(resolve, reject);
       }
     });
 
@@ -112,58 +146,69 @@ function AnalyserManager(analyserInstallLocation){
             try {
               resolve(JSON.parse(jsonWithComments(fileContents)));
             } catch(err){
-              reject(new Error(`Unable to parse config file for analyser: '${analyserName}'`, err));
+              reject(new Error(`Unable to parse config file for analyser '${analyserName}'`, err));
             }
           }, function(err){
-            reject(new Error(`Unable to read config file for analyser: '${analyserName}'`, err));
+            reject(new Error(`Unable to read config file for analyser '${analyserName}'`, err));
           });
       });
     }
   }
 
-  function installAnalyser(analyserName){
+  function installAnalyser(analyserName, version){
     return new Promise(function(resolve, reject){
-      fetchAnalyserList()
-        .then(function(ALL_ANALYSERS){
-          var analyserConfig = ALL_ANALYSERS[analyserName];
-          if(analyserConfig){
-            var config = analyserConfig.config; //strip the wrapper which includes registry etc..
-            var version = config.version;
-            if(semver(version)){
-              if(analyserConfig.registry === 'npm'){
-                var npm = new npmExtractor();
+      getAllAnalyserEntry(analyserName)
+        .then(function(analyserConfig){
+          var config = analyserConfig.config; //strip the wrapper which includes registry etc..
 
-                npm.on('downloading', function(){self.emit('downloading')});
-                npm.on('downloaded', function(){self.emit('downloaded')});
-                npm.on('installed', function(){self.emit('installed')});
-
-                npm.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
-                .then(function(){
-                  resolve(config);  //return the newly installed analyser config
-                }, function(err){
-                  reject(err);  //unable to install analyser
-                });
-              }
-            }
-          } else {
-            reject(new Error(`Unknown analyser: ${analyserName}`));
+          if(version !== 'latest' && !semver(version)) {
+            reject(new Error(`Invalid version '${version}' for analyser '${analyserName}'`));
           }
-        });
 
-      function fetchAnalyserList(){
-        const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/sidekickcode/analysers/master/analysers.json';
+          if(analyserConfig.registry === 'npm'){
+            var npm = new npmExtractor();
 
-        return new Promise(function(resolve, reject){
-          request(SK_CENTRAL_ANALYSER_LIST_URL, function (error, response, body) {
-            if(!error && response.statusCode == 200) {
-              resolve(JSON.parse(jsonWithComments(body)));
-            } else {
-              reject(new Error('Unable to fetch list of analysers', error));
-            }
-          })
-        });
-      }
+            npm.on('downloading', function(){self.emit('downloading')});
+            npm.on('downloaded', function(){self.emit('downloaded')});
+            npm.on('installed', function(){self.emit('installed')});
+
+            npm.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
+            .then(function(){
+              resolve(config);  //return the newly installed analyser config
+            }, function(err){
+              reject(err);  //unable to install analyser
+            });
+          }
+        }, reject);
     });
+  }
+
+  function getAllAnalyserEntry(analyserName){
+    return new Promise(function(resolve, reject) {
+      fetchAnalyserList()
+        .then(function (ALL_ANALYSERS) {
+          var analyserConfig = ALL_ANALYSERS[analyserName];
+          if (analyserConfig) {
+            resolve(analyserConfig);
+          } else {
+            reject(new Error(`Unknown analyser '${analyserName}'`));
+          }
+        })
+    });
+
+    function fetchAnalyserList(){
+      const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/sidekickcode/analysers/master/analysers.json';
+
+      return new Promise(function(resolve, reject){
+        request(SK_CENTRAL_ANALYSER_LIST_URL, function (error, response, body) {
+          if(!error && response.statusCode == 200) {
+            resolve(JSON.parse(jsonWithComments(body)));
+          } else {
+            reject(new Error('Unable to fetch list of analysers', error));
+          }
+        })
+      });
+    }
   }
 }
 

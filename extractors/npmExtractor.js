@@ -25,13 +25,19 @@ function NpmExtractor(){
     self.emit('downloading');
     return new Promise(function(resolve, reject){
       fetchNpmInfoForAnalyser(analyserName).then(function(analyserInfo){
-        var specificVersionInfo = analyserInfo.versions[analyserVersion];
-
-        if(!specificVersionInfo){
-          throw new Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`);
+        var specificVersionInfo, versionToInstall;
+        if(analyserVersion === 'latest'){
+          versionToInstall = analyserInfo['dist-tags'].latest;
+          specificVersionInfo = analyserInfo.versions[versionToInstall];
+        } else {
+          specificVersionInfo = analyserInfo.versions[analyserVersion];
+          if(!specificVersionInfo){
+            throw new Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`);
+          }
+          versionToInstall = analyserVersion;
         }
 
-        var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
+        var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${versionToInstall}`);
         fs.mkdirSync(newAnalyserDir);
 
         var tarballURL = specificVersionInfo.dist.tarball;
@@ -43,6 +49,14 @@ function NpmExtractor(){
           unpack(tarballFullPath, newAnalyserDir).then(resolve, reject);
         });
       });
+    });
+  };
+
+  self.getLatestVersion = function(analyserName){
+    return new Promise(function(resolve, reject){
+      fetchNpmInfoForAnalyser(analyserName).then(function(analyserInfo){
+        resolve(analyserInfo['dist-tags'].latest);
+      }, reject);
     });
   };
 

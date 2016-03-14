@@ -89,6 +89,23 @@ describe('analyser manager', function() {
       });
     });
 
+    it('determines if a newer version exists', function(done) {
+      var analyserName = 'sidekick-david';
+      var version = '1.0.0';
+      var latestVersion;
+
+      am.isNewerVersionAvailable(analyserName, version).then(function(isNewer){
+        expect(isNewer.newer).to.be.true;
+        latestVersion = isNewer.latest;
+
+        am.isNewerVersionAvailable(analyserName, latestVersion).then(function(isNewer){
+          expect(isNewer.newer).to.be.false;
+          done();
+        });
+      });
+    });
+
+
     after(function(){
       var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
       fs.removeSync(testAnalyserDir);
@@ -113,7 +130,7 @@ describe('analyser manager', function() {
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', 'Unknown analyser: ' + analyserName);
+        expect(err).to.have.property('message', `Unknown analyser '${analyserName}'`);
         done();
       });
     });
@@ -125,7 +142,7 @@ describe('analyser manager', function() {
         assert.fail('Should fail when no analyser config file.');
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to read config file for analyser: '${analyserName}'`);
+        expect(err).to.have.property('message', `Unable to read config file for analyser '${analyserName}'`);
         done();
       });
     });
@@ -139,7 +156,35 @@ describe('analyser manager', function() {
         assert.fail('Should fail when the config file contains garbage.');
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to parse config file for analyser: '${analyserName}'`);
+        expect(err).to.have.property('message', `Unable to parse config file for analyser '${analyserName}'`);
+        done();
+      });
+    });
+
+    it('fails to determine latest for a unknown analyser', function(done) {
+      var analyserName = 'garbage-garbage';
+      var version = 'garbage';
+
+      am.isNewerVersionAvailable(analyserName, version).then(function(isNewer){
+        assert.fail('Should fail for garbage anlayser.');
+        done();
+      }, function(err){
+        var re =/Unknown analyser 'garbage-garbage'/i;
+        expect(err.message).to.match(re);
+        done();
+      });
+    });
+
+    it('still return useful latest version for garbage version', function(done) {
+      var analyserName = 'sidekick-david';
+      var version = 'garbage';
+
+      am.isNewerVersionAvailable(analyserName, version).then(function(isNewer){
+        expect(isNewer.latest).to.exist;
+        expect(isNewer.newer).to.not.exist;
+        done();
+      }, function(err){
+        assert.fail('Should not fail for valid analyser.');
         done();
       });
     });
