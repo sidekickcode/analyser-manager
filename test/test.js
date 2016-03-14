@@ -71,8 +71,6 @@ describe('analyser manager', function() {
     it('fetches the canonical config for an existing analyser', function(done) {
       var analyserName = 'sidekick-david';
 
-      testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, analyserName);
-
       am.fetchCanonicalAnalyserConfig(analyserName).then(function(analyserConfig){
         expect(analyserConfig).to.have.property('registry', 'npm');
         expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
@@ -169,13 +167,6 @@ describe('analyser manager', function() {
       am = new AnalyserManger(analysersDir);
     }
 
-    var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
-
-    before(function(){
-      fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
-      fs.mkdirSync(testAnalyserDir);
-    });
-
     it('fails to install for an unknown analyser', function(done) {
       var analyserName = 'rubbish-subbish-analyser';
 
@@ -251,7 +242,6 @@ describe('analyser manager', function() {
     });*/
 
     after(function(){
-      fs.removeSync(testAnalyserDir);
       fs.removeSync(analysersDir)
     });
 
