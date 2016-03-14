@@ -110,6 +110,8 @@ function NpmExtractor(){
             resolve();
           }
         }
+
+        self.emit('installing');
         fs.unlink(tarball); //remove tarball
         exec(`cd ${analyserDir}/package && ./bin/install`, puts); //run bin/install
       });

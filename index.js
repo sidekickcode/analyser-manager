@@ -170,6 +170,7 @@ function AnalyserManager(analyserInstallLocation){
 
             npm.on('downloading', function(){self.emit('downloading')});
             npm.on('downloaded', function(){self.emit('downloaded')});
+            npm.on('installing', function(){self.emit('installing')});
             npm.on('installed', function(){self.emit('installed')});
 
             npm.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)

@@ -43,7 +43,7 @@ describe('analyser manager', function() {
     this.timeout(30000);
 
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
-    var goodVersion;
+    var goodVersion, knownVersion;
 
     before(function(){
       //fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
@@ -63,7 +63,7 @@ describe('analyser manager', function() {
       });
     });
 
-    it('installs an analyser and loads the config', function(done) {
+    it('installs the latest version of an analyser and loads the config', function(done) {
       var analyserName = 'sidekick-david';
 
       var downloading = sinon.spy();
@@ -71,6 +71,9 @@ describe('analyser manager', function() {
 
       var downloaded = sinon.spy();
       am.on('downloaded', downloaded);
+
+      var installing = sinon.spy();
+      am.on('installing', installing);
 
       var installed = sinon.spy();
       am.on('installed', installed);
@@ -84,7 +87,20 @@ describe('analyser manager', function() {
 
         expect(downloading.called).to.be.true;
         expect(downloaded.called).to.be.true;
+        expect(installing.called).to.be.true;
         expect(installed.called).to.be.true;
+        done();
+      });
+    });
+
+    it('installs a specific version of an analyser', function(done) {
+      var analyserName = 'sidekick-david';
+      knownVersion = '1.0.3';
+
+      am.fetchAnalyser(analyserName, knownVersion).then(function(analyserConfig){
+        expect(analyserConfig).to.have.property('path');
+        expect(analyserConfig).to.have.property('config');
+        expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
         done();
       });
     });
@@ -108,8 +124,10 @@ describe('analyser manager', function() {
 
     after(function(){
       var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
+      var versionedAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${knownVersion}`);
       fs.removeSync(testAnalyserDir);
       fs.removeSync(goodAnalyserDir);
+      fs.removeSync(versionedAnalyserDir);
     });
 
   });
