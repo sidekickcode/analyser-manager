@@ -14,6 +14,9 @@ const Promise = require('bluebird');
 const jsonWithComments = require('strip-json-comments');
 const request = require('request');
 
+const mkdir = Promise.promisify(fs.mkdir);
+const unlink = Promise.promisify(fs.unlink);
+
 module.exports = exports = NpmExtractor;
 
 function NpmExtractor(){
@@ -32,22 +35,26 @@ function NpmExtractor(){
         } else {
           specificVersionInfo = analyserInfo.versions[analyserVersion];
           if(!specificVersionInfo){
-            throw new Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`);
+            reject(new Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`));
           }
           versionToInstall = analyserVersion;
         }
 
         var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${versionToInstall}`);
-        fs.mkdirSync(newAnalyserDir);
+        mkdir(newAnalyserDir)
+          .then(function(){
+            var tarballURL = specificVersionInfo.dist.tarball;
+            var tarballName = resolveTarballName(tarballURL);
+            var tarballFullPath = path.join(newAnalyserDir, tarballName);
 
-        var tarballURL = specificVersionInfo.dist.tarball;
-        var tarballName = resolveTarballName(tarballURL);
-        var tarballFullPath = path.join(newAnalyserDir, tarballName);
+            fetchAnalyserTarball(tarballURL, tarballFullPath).then(function(){
+              self.emit('downloaded');
+              unpack(tarballFullPath, newAnalyserDir).then(resolve, reject);
+            });
 
-        fetchAnalyserTarball(tarballURL, tarballFullPath).then(function(){
-          self.emit('downloaded');
-          unpack(tarballFullPath, newAnalyserDir).then(resolve, reject);
-        });
+            }, function(err) {
+              reject(new Error(`Unable to create analyser dir for analyser '${analyserName}'`, err));
+          })
       });
     });
   };
@@ -112,7 +119,7 @@ function NpmExtractor(){
         }
 
         self.emit('installing');
-        fs.unlink(tarball); //remove tarball
+        unlink(tarball); //remove tarball (don't fail if we cant)
         exec(`cd ${analyserDir}/package && ./bin/install`, puts); //run bin/install
       });
       read.on('error', reject);

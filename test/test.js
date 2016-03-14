@@ -10,7 +10,8 @@ var fs = require('fs-extra');
 var path = require('path');
 
 var AnalyserManger = require('../../analyser-manager');
-var am = new AnalyserManger(path.join(__dirname, '/fixtures')); //override with test fixture dir
+var analysersDir = path.join(__dirname, '/fixtures');
+var am;
 
 describe('install location', function() {
 
@@ -42,23 +43,39 @@ describe('analyser manager', function() {
 
     this.timeout(30000);
 
-    var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
     var goodVersion, knownVersion;
 
     before(function(){
-      //fs.removeSync(testAnalyserDir); //in case you quit tests in IDE
-      //fs.removeSync(goodAnalyserDir); //in case you quit tests in IDE
-      fs.mkdirSync(testAnalyserDir);
-      fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), JSON.stringify({"shortName": "test"}));
     });
 
-    it('loads the config of an existing analyser', function(done) {
-      var analyserName = 'test-analyser';
+    it('initialises - creates the analyser dir if it does not exist', function(done) {
+      try {
+        am = new AnalyserManger(analysersDir); //override with test fixture dir
+        am.init().then(function(){
+          fs.stat(analysersDir, function(err, data){
+            expect(err).to.not.exist;
+            expect(am.ALL_ANALYSERS).to.exist;
+            done();
+          });
+        }, function(err){
+          expect.fail('creation of analyser dir should succeed.');
+          done();
+        });
+      } catch(err){
+        expect.fail('creation of analyser dir should succeed.');
+        done();
+      }
 
-      am.fetchAnalyser(analyserName).then(function(analyserConfig){
-        expect(analyserConfig).to.have.property('path');
-        expect(analyserConfig).to.have.property('config');
-        expect(analyserConfig).to.have.deep.property('config.shortName', 'test');
+    });
+
+    it('fetches the canonical config for an existing analyser', function(done) {
+      var analyserName = 'sidekick-david';
+
+      testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, analyserName);
+
+      am.fetchCanonicalAnalyserConfig(analyserName).then(function(analyserConfig){
+        expect(analyserConfig).to.have.property('registry', 'npm');
+        expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
         done();
       });
     });
@@ -78,7 +95,7 @@ describe('analyser manager', function() {
       var installed = sinon.spy();
       am.on('installed', installed);
 
-      am.fetchAnalyser(analyserName).then(function(analyserConfig){
+      am.installAnalyser(analyserName).then(function(analyserConfig){
 
         goodVersion = analyserConfig.config.version;
         expect(analyserConfig).to.have.property('path');
@@ -90,10 +107,25 @@ describe('analyser manager', function() {
         expect(installing.called).to.be.true;
         expect(installed.called).to.be.true;
         done();
+      }, function(err){
+        expect.fail();
+        done();
       });
     });
 
     it('installs a specific version of an analyser', function(done) {
+      var analyserName = 'sidekick-david';
+      knownVersion = '1.0.3';
+
+      am.installAnalyser(analyserName, knownVersion).then(function(analyserConfig){
+        expect(analyserConfig).to.have.property('path');
+        expect(analyserConfig).to.have.property('config');
+        expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
+        done();
+      });
+    });
+
+    it('return the config for an existing analyser', function(done) {
       var analyserName = 'sidekick-david';
       knownVersion = '1.0.3';
 
@@ -125,7 +157,6 @@ describe('analyser manager', function() {
     after(function(){
       var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
       var versionedAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${knownVersion}`);
-      fs.removeSync(testAnalyserDir);
       fs.removeSync(goodAnalyserDir);
       fs.removeSync(versionedAnalyserDir);
     });
@@ -133,6 +164,10 @@ describe('analyser manager', function() {
   });
 
   describe('negative tests', function() {
+
+    if(!am){
+      am = new AnalyserManger(analysersDir);
+    }
 
     var testAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, 'test-analyser');
 
@@ -144,7 +179,7 @@ describe('analyser manager', function() {
     it('fails to install for an unknown analyser', function(done) {
       var analyserName = 'rubbish-subbish-analyser';
 
-      am.fetchAnalyser(analyserName).then(function(analyserConfig){
+      am.installAnalyser(analyserName).then(function(analyserConfig){
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
@@ -153,28 +188,28 @@ describe('analyser manager', function() {
       });
     });
 
-    it('fails when there is no config file for an analyser', function(done) {
-      var analyserName = 'test-analyser';
+    it('fails to fetch local config for an unknown analyser', function(done) {
+      var analyserName = 'rubbish-subbish-analyser';
+      var version = '1.0.1';
 
-      am.fetchAnalyser(analyserName).then(function(analyserConfig){
-        assert.fail('Should fail when no analyser config file.');
+      am.fetchAnalyser(analyserName, version).then(function(analyserConfig){
+        assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to read config file for analyser '${analyserName}'`);
+        expect(err).to.have.property('message', `Unable to fetch config for analyser '${analyserName}'`);
         done();
       });
     });
 
-    it('fails when the config file contains no usable config', function(done) {
-      var analyserName = 'test-analyser';
+    it('fails to fetch local config for an unknown analyser version', function(done) {
+      var analyserName = 'sidekick-david';
+      var version = '0.0.1';
 
-      fs.writeFileSync(path.join(testAnalyserDir, 'config.json'), 'just some text');
-
-      am.fetchAnalyser(analyserName).then(function(analyserConfig){
-        assert.fail('Should fail when the config file contains garbage.');
+      am.fetchAnalyser(analyserName, version).then(function(analyserConfig){
+        assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to parse config file for analyser '${analyserName}'`);
+        expect(err).to.have.property('message', `Unable to fetch config for analyser '${analyserName}'`);
         done();
       });
     });
@@ -217,6 +252,7 @@ describe('analyser manager', function() {
 
     after(function(){
       fs.removeSync(testAnalyserDir);
+      fs.removeSync(analysersDir)
     });
 
   });

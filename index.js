@@ -21,6 +21,7 @@ const npmExtractor = require('./extractors/npmExtractor');
 const exists = Promise.promisify(fs.stat);
 const canAccess = Promise.promisify(fs.access);
 const readFile = Promise.promisify(fs.readFile);
+const mkdir = Promise.promisify(fs.mkdir);
 
 module.exports = exports = AnalyserManager;
 
@@ -40,54 +41,128 @@ function AnalyserManager(analyserInstallLocation){
   EventEmitter.call(self);
 
   self.ANALYSER_INSTALL_DIR = analyserInstallLocation;
+  self.ALL_ANALYSERS;
 
-  function init(){
-    exists(self.ANALYSER_INSTALL_DIR)
-      .then(function(stat){
-        canAccess(self.ANALYSER_INSTALL_DIR, fs.W_OK)
-          .then(function(){
-            //all good
-          }, function(err){
-            throw new Error('Unable to write to sidekick analyser directory', err);
-          });
-    }, function(err){
-      console.log('creating sidekick analyser dir..');
-      try {
-        fs.mkdirSync(self.ANALYSER_INSTALL_DIR);
-        //all good
-      } catch(err){
-        throw new Error('Unable to create sidekick analyser directory', err);
+  /**
+   * Initialise the all analyser cache, create the analysers dir etc..
+   * @returns {bluebird|exports|module.exports}
+   */
+  self.init = function(){
+    return new Promise(function(resolve, reject){
+      exists(self.ANALYSER_INSTALL_DIR)
+        .then(function(stat){
+          canAccess(self.ANALYSER_INSTALL_DIR, fs.W_OK)
+            .then(function(){
+              self.fetchAnalyserList().then(resolve, reject)
+            }, function(err){
+              reject(new Error('Unable to write to sidekick analyser directory', err));
+            });
+        }, function(err){
+          mkdir(self.ANALYSER_INSTALL_DIR)
+            .then(function(){
+              self.fetchAnalyserList().then(resolve, reject)
+            }, function(err){
+                reject(new Error('Unable to create sidekick analyser directory', err));
+              });
+        })
+    });
+  };
+
+  /**
+   * Fetch a list of all the analysers that Sidekick supports
+   * @returns {bluebird|exports|module.exports}
+   */
+  self.fetchAnalyserList = function(){
+    const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/sidekickcode/analysers/master/analysers.json';
+
+    return new Promise(function(resolve, reject){
+      request(SK_CENTRAL_ANALYSER_LIST_URL, function (error, response, body) {
+        if(!error && response.statusCode == 200) {
+          self.ALL_ANALYSERS = JSON.parse(jsonWithComments(body));
+          resolve(self.ALL_ANALYSERS);
+        } else {
+          reject(new Error('Unable to fetch list of analysers', error));
+        }
+      })
+    });
+  };
+
+  /**
+   * Fetch the canonical analyser config stored in teh central list of analysers.
+   * @param analyserName the name of the analyser to fetch the config for
+   * @returns Promise {path: [abs path to analyser], config: [analyser config]}
+   */
+  self.fetchCanonicalAnalyserConfig = function(analyserName){
+    return new Promise(function(resolve, reject) {
+      if(!self.ALL_ANALYSERS) {
+        self.fetchAnalyserList()
+          .then(function() {
+            returnConfig();
+          }, reject)
+      } else {
+        returnConfig();
       }
-    })
-  }
-  init();
+
+      function returnConfig(){
+        var analyserConfig = self.ALL_ANALYSERS[analyserName];
+        if (analyserConfig) {
+          resolve(analyserConfig);
+        } else {
+          reject(new Error(`Unknown analyser '${analyserName}'`));
+        }
+      }
+    });
+  };
 
   /**
    * Fetch and analyser object to be run (its config and path to its executable).
    * Will install the analyser for a registry if not found on the local install.
    * If no version specified and the analyser does not exist locally, it will install the latest version.
-   * @param analyser the name of the analyser to fetch the config for
+   * @param analyserName the name of the analyser to fetch the config for
    * @param version (optional) the specific version of the analyser to return data for.
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
   self.fetchAnalyser = function(analyserName, version){
-    var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, analyserName);
+    var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${version}`);
 
     return new Promise(function(resolve, reject){
       exists(pathToAnalyser)
         .then(function(fileStat){
-          fetchAnalyserConfig(analyserName, version, true)
+          readAnalyserConfig(pathToAnalyser)
+            .then(function(configObj){
+              resolve({path: pathToAnalyser, config: configObj});
+            }, reject);
+        }, function(err){
+          reject(new Error(`Unable to fetch config for analyser '${analyserName}'`, err));
+        });
+    });
+  };
+
+  /**
+   * Install the analyser from a registry.
+   * If the analyser already exists locally (same version) then we just return the config.
+   * If no version specified it will install the latest version.
+   * @param analyserName the name of the analyser to fetch the config for
+   * @param version (optional) the specific version of the analyser to return data for.
+   * @returns Promise {path: [abs path to analyser], config: [analyser config]}
+   */
+  self.installAnalyser = function(analyserName, version){
+    var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${version}`);
+
+    return new Promise(function(resolve, reject){
+      exists(pathToAnalyser)
+        .then(function(fileStat){
+          readAnalyserConfig(pathToAnalyser)
             .then(function(configObj){
               resolve({path: pathToAnalyser, config: configObj});
             }, reject);
         }, function(err){
           if(err.code === 'ENOENT'){
-
             if(!version) {
               version = 'latest';
             }
 
-            fetchAnalyserConfig(analyserName, version, false)
+            _installAnalyser(analyserName, version)
               .then(function(configObj){
                 resolve({path: pathToAnalyser, config: configObj});
               }, reject);
@@ -98,6 +173,12 @@ function AnalyserManager(analyserInstallLocation){
     });
   };
 
+  /**
+   * Get the latest version info for an analyser {newer: [boolean], latest: [string]}
+   * @param analyserName
+   * @param version
+   * @returns {bluebird|exports|module.exports}
+   */
   self.isNewerVersionAvailable = function(analyserName, version){
     return new Promise(function(resolve, reject){
       getAllAnalyserEntry(analyserName)
@@ -110,7 +191,7 @@ function AnalyserManager(analyserInstallLocation){
                   resolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
                 } else {
                   if(semver.valid(latestVersion)){
-                    //we were pased a garbage version - still useful to say what the latest version is
+                    //we were passed a garbage version - still useful to say what the latest version is
                     resolve({"latest": latestVersion});
                   } else {
                     reject(new Error(`Invalid version '${version}' for analyser '${analyserName}'`));
@@ -123,39 +204,27 @@ function AnalyserManager(analyserInstallLocation){
   };
 
   /**
-   * Fetch an analyser config from sidekick central
-   * @param analyserName
-   * @param version the version of the analyser to fetch config for
-   * @param isAlreadyInstalled boolean - is the analyser already on the local machine
+   * Read and parse the config for a locally installed analyser
+   * @param analyserPath the abs path of the analyser config file
    */
-  function fetchAnalyserConfig(analyserName, version, isAlreadyInstalled) {
+  function readAnalyserConfig(analyserPath) {
     return new Promise(function(resolve, reject){
-      if(isAlreadyInstalled) {
-        readAnalyserConfig(analyserName).then(resolve, reject);
-      } else {
-        installAnalyser(analyserName, version).then(resolve, reject);
-      }
+      var filePath = path.join(analyserPath, 'package', 'config.json');
+
+      readFile(filePath, {encoding: 'utf8'})
+        .then(function(fileContents){
+          try {
+            resolve(JSON.parse(jsonWithComments(fileContents)));
+          } catch(err){
+            reject(new Error(`Unable to parse config file for analyser '${analyserPath}'`, err));
+          }
+        }, function(err){
+          reject(new Error(`Unable to read config file for analyser '${analyserPath}'`, err));
+        });
     });
-
-    function readAnalyserConfig(analyserName){
-      return new Promise(function(resolve, reject){
-        var fileName = path.join(self.ANALYSER_INSTALL_DIR, analyserName, 'config.json');
-
-        readFile(fileName, {encoding: 'utf8'})
-          .then(function(fileContents){
-            try {
-              resolve(JSON.parse(jsonWithComments(fileContents)));
-            } catch(err){
-              reject(new Error(`Unable to parse config file for analyser '${analyserName}'`, err));
-            }
-          }, function(err){
-            reject(new Error(`Unable to read config file for analyser '${analyserName}'`, err));
-          });
-      });
-    }
   }
 
-  function installAnalyser(analyserName, version){
+  function _installAnalyser(analyserName, version){
     return new Promise(function(resolve, reject){
       getAllAnalyserEntry(analyserName)
         .then(function(analyserConfig){
@@ -186,7 +255,7 @@ function AnalyserManager(analyserInstallLocation){
 
   function getAllAnalyserEntry(analyserName){
     return new Promise(function(resolve, reject) {
-      fetchAnalyserList()
+      self.fetchAnalyserList()
         .then(function (ALL_ANALYSERS) {
           var analyserConfig = ALL_ANALYSERS[analyserName];
           if (analyserConfig) {
@@ -196,20 +265,6 @@ function AnalyserManager(analyserInstallLocation){
           }
         })
     });
-
-    function fetchAnalyserList(){
-      const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/sidekickcode/analysers/master/analysers.json';
-
-      return new Promise(function(resolve, reject){
-        request(SK_CENTRAL_ANALYSER_LIST_URL, function (error, response, body) {
-          if(!error && response.statusCode == 200) {
-            resolve(JSON.parse(jsonWithComments(body)));
-          } else {
-            reject(new Error('Unable to fetch list of analysers', error));
-          }
-        })
-      });
-    }
   }
 }
 
