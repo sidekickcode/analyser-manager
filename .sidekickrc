@@ -2,23 +2,23 @@
     "exclude": [
         "node_modules"
     ],
-    "languages": {
-        "js": {
-            "analysers": [
-                "eslint",
-                "js-todos",
-                "jscs"
+    "languages": [
+        {
+            "js": [
+                "sidekick-eslint",
+                "sidekick-js-todos",
+                "sidekick-jscs"
             ]
         },
-        "all": {
-            "analysers": [
+        {
+            "all": [
                 "sidekick-security"
             ]
         },
-        "json": {
-            "analysers": [
+        {
+            "json": [
                 "sidekick-david"
             ]
         }
-    }
+    ]
 }
