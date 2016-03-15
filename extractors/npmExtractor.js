@@ -12,8 +12,9 @@ const exec = require('child_process').exec;
 const tgz = require('tar.gz');
 const Promise = require('bluebird');
 const jsonWithComments = require('strip-json-comments');
-const request = require('request');
+const requestCB = require('request');
 
+const request = Promise.promisify(requestCB);
 const mkdir = Promise.promisify(fs.mkdir);
 const unlink = Promise.promisify(fs.unlink);
 
@@ -26,8 +27,8 @@ function NpmExtractor(){
 
   self.fetch = function(analyserName, analyserVersion, analyserInstallDir){
     self.emit('downloading');
-    return new Promise(function(resolve, reject){
-      fetchNpmInfoForAnalyser(analyserName).then(function(analyserInfo){
+    return fetchNpmInfoForAnalyser(analyserName)
+      .then(function(analyserInfo){
         var specificVersionInfo, versionToInstall;
         if(analyserVersion === 'latest'){
           versionToInstall = analyserInfo['dist-tags'].latest;
@@ -35,50 +36,50 @@ function NpmExtractor(){
         } else {
           specificVersionInfo = analyserInfo.versions[analyserVersion];
           if(!specificVersionInfo){
-            reject(new Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`));
+            Promise.reject(Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`));
           }
           versionToInstall = analyserVersion;
         }
 
         var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${versionToInstall}`);
-        mkdir(newAnalyserDir)
+        return mkdir(newAnalyserDir)
           .then(function(){
             var tarballURL = specificVersionInfo.dist.tarball;
             var tarballName = resolveTarballName(tarballURL);
             var tarballFullPath = path.join(newAnalyserDir, tarballName);
 
-            fetchAnalyserTarball(tarballURL, tarballFullPath).then(function(){
+            return fetchAnalyserTarball(tarballURL, tarballFullPath).then(function(){
               self.emit('downloaded');
-              unpack(tarballFullPath, newAnalyserDir).then(resolve, reject);
+              return unpack(tarballFullPath, newAnalyserDir);
             });
 
-            }, function(err) {
-              reject(new Error(`Unable to create analyser dir for analyser '${analyserName}'`, err));
+          }, function(err) {
+            Promise.reject(Error(`Unable to create analyser dir for analyser '${analyserName}'`, err));
           })
-      });
-    });
+      })
   };
 
   self.getLatestVersion = function(analyserName){
-    return new Promise(function(resolve, reject){
-      fetchNpmInfoForAnalyser(analyserName).then(function(analyserInfo){
-        resolve(analyserInfo['dist-tags'].latest);
-      }, reject);
-    });
+    return fetchNpmInfoForAnalyser(analyserName)
+      .then(function(analyserInfo){
+        return Promise.resolve(analyserInfo['dist-tags'].latest);
+      })
   };
 
   function fetchNpmInfoForAnalyser(analyserName){
     const NPM_URL = `https://registry.npmjs.org/${analyserName}`;
 
-    return new Promise(function(resolve, reject){
-      request(NPM_URL, function (error, response, body) {
-        if(!error && response.statusCode == 200) {
-          resolve(JSON.parse(jsonWithComments(body)));
+    return request(NPM_URL)
+      .then(function(response) {
+        if(response.statusCode == 200) {
+          self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
+          return Promise.resolve(self.ALL_ANALYSERS);
         } else {
-          reject(new Error(`Unable to fetch analyser info for '${analyserName}'`, error));
+          Promise.reject(Error(`Unable to fetch analyser info for '${analyserName}'`, error));
         }
+      }, function(err){
+        return Promise.reject(Error(`Unable to fetch analyser info for '${analyserName}'`, error));
       })
-    });
   }
 
   function resolveTarballName(tarballURL){
@@ -95,11 +96,11 @@ function NpmExtractor(){
       });
 
       request
-          .get(tarballURL)
-          .on('error', function(err) {
-            reject(new Error(`Unable to fetch tarball '${tarballURL}'`, err));
-          })
-          .pipe(stream)
+        .get(tarballURL)
+        .on('error', function(err) {
+          reject(new Error(`Unable to fetch tarball '${tarballURL}'`, err));
+        })
+        .pipe(stream)
     });
   }
 
