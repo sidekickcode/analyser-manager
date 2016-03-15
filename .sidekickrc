@@ -3,14 +3,14 @@
         "node_modules"
     ],
     "languages": [
-        {
-            "0": []
-        },
-        {
-            "1": []
-        },
-        {
-            "2": []
-        }
+        [
+            "sidekick-"
+        ],
+        [
+            "sidekick-"
+        ],
+        [
+            "sidekick-"
+        ]
     ]
 }
