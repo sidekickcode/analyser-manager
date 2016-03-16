@@ -187,7 +187,8 @@ describe('analyser manager', function() {
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to fetch config for analyser '${analyserName}'`);
+        var re =/Unable to fetch config for analyser 'rubbish-subbish-analyser'/i;
+        expect(err.message).to.match(re);
         done();
       });
     });
@@ -200,7 +201,8 @@ describe('analyser manager', function() {
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unable to fetch config for analyser '${analyserName}'`);
+        var re =/Unable to fetch config for analyser 'sidekick-david'/i;
+        expect(err.message).to.match(re);
         done();
       });
     });

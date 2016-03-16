@@ -65,7 +65,7 @@ function AnalyserManager(analyserInstallLocation){
                 })
             })
             .catch(function(err){
-              return Promise.reject(Error('Unable to create sidekick analyser directory', err));
+              return reject('Unable to create sidekick analyser directory', err);
             })
         }
       );
@@ -73,10 +73,10 @@ function AnalyserManager(analyserInstallLocation){
     function canWrite(dir){
       return canAccess(dir, fs.W_OK)
         .then(function(){
-          return Promise.resolve();
+          return resolve();
         })
         .catch(function(err){
-          return Promise.reject(Error('Unable to write to sidekick analyser directory', err));
+          return reject('Unable to write to sidekick analyser directory', err);
         })
     }
   };
@@ -92,12 +92,12 @@ function AnalyserManager(analyserInstallLocation){
       .then(function(response) {
         if(response.statusCode == 200) {
           self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
-          return Promise.resolve(self.ALL_ANALYSERS);
+          return resolve(self.ALL_ANALYSERS);
         } else {
-          return Promise.reject(Error('Unable to fetch list of analysers', err));
+          return reject('Unable to fetch list of analysers', err);
         }
       }, function(err){
-        return Promise.reject(Error('Unable to fetch list of analysers', err));
+        return reject('Unable to fetch list of analysers', err);
       })
   };
 
@@ -119,9 +119,9 @@ function AnalyserManager(analyserInstallLocation){
     function returnConfig(){
       var analyserConfig = self.ALL_ANALYSERS[analyserName];
       if (analyserConfig) {
-        return Promise.resolve(analyserConfig);
+        return resolve(analyserConfig);
       } else {
-        return Promise.reject(Error(`Unknown analyser '${analyserName}'`));
+        return reject(`Unknown analyser '${analyserName}'`);
       }
     }
 
@@ -142,10 +142,10 @@ function AnalyserManager(analyserInstallLocation){
       .then(function(fileStat){
         return readAnalyserConfig(pathToAnalyser)
           .then(function(configObj){
-            return Promise.resolve({path: pathToAnalyser, config: configObj});
+            return resolve({path: pathToAnalyser, config: configObj});
           });
       }, function(err){
-        return Promise.reject(Error(`Unable to fetch config for analyser '${analyserName}'`, err));
+        return reject(`Unable to fetch config for analyser '${analyserName}'`, err);
       })
   };
 
@@ -158,27 +158,25 @@ function AnalyserManager(analyserInstallLocation){
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
   self.installAnalyser = function(analyserName, version){
-    var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${version}`);
+    var versionToInstall = version || 'latest';
+    var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${versionToInstall}`);
 
-    return exists(pathToAnalyser)
+    return exists(pathToAnalyser) //checks for @latest as well as specific version
       .then(function(fileStat){
         return readAnalyserConfig(pathToAnalyser)
           .then(function(configObj){
-            return Promise.resolve({path: pathToAnalyser, config: configObj});
+            return resolve({path: pathToAnalyser, config: configObj});
           });
         },
         function(err){
           if(err.code === 'ENOENT'){
-            if(!version) {
-              version = 'latest';
-            }
-
-            return _installAnalyser(analyserName, version)
+            //no specific version dir or @latest dir
+            return _installAnalyser(analyserName, versionToInstall)
               .then(function(configObj){
-                return Promise.resolve({path: pathToAnalyser, config: configObj});
+                return resolve({path: pathToAnalyser, config: configObj});
               });
           } else {
-            return Promise.reject(Error('Cannot read analyser install dir', err));
+            return reject('Cannot read analyser install dir', err);
           }
         }
       )
@@ -198,13 +196,13 @@ function AnalyserManager(analyserInstallLocation){
           return npm.getLatestVersion(analyserName)
             .then(function(latestVersion){
               if(semver.valid(version) && semver.valid(latestVersion)){
-                return Promise.resolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
+                return resolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
               } else {
                 if(semver.valid(latestVersion)){
                   //we were passed a garbage version - still useful to say what the latest version is
-                  return Promise.resolve({"latest": latestVersion});
+                  return resolve({"latest": latestVersion});
                 } else {
-                  return Promise.reject(Error(`Invalid version '${version}' for analyser '${analyserName}'`));
+                  return reject(`Invalid version '${version}' for analyser '${analyserName}'`);
                 }
               }
             })
@@ -222,12 +220,12 @@ function AnalyserManager(analyserInstallLocation){
     return readFile(filePath, {encoding: 'utf8'})
       .then(function(fileContents){
         try {
-          return Promise.resolve(JSON.parse(jsonWithComments(fileContents)));
+          return resolve(JSON.parse(jsonWithComments(fileContents)));
         } catch(err){
-          return Promise.reject(Error(`Unable to parse config file for analyser '${analyserPath}'`, err));
+          return reject(`Unable to parse config file for analyser '${analyserPath}'`, err);
         }
       }, function(err){
-        return Promise.reject(Error(`Unable to read config file for analyser '${analyserPath}'`, err));
+        return reject(`Unable to read config file for analyser '${analyserPath}'`, err);
       });
   }
 
@@ -237,7 +235,7 @@ function AnalyserManager(analyserInstallLocation){
         var config = analyserConfig.config; //strip the wrapper which includes registry etc..
 
         if(version !== 'latest' && !semver(version)) {
-          return Promise.reject(Error(`Invalid version '${version}' for analyser '${analyserName}'`));
+          return reject(`Invalid version '${version}' for analyser '${analyserName}'`);
         }
 
         if(analyserConfig.registry === 'npm'){
@@ -250,7 +248,7 @@ function AnalyserManager(analyserInstallLocation){
 
           return npm.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
             .then(function(){
-              return Promise.resolve(config);  //return the newly installed analyser config
+              return resolve(config);  //return the newly installed analyser config
             })
         }
       })
@@ -261,11 +259,22 @@ function AnalyserManager(analyserInstallLocation){
       .then(function (ALL_ANALYSERS) {
         var analyserConfig = ALL_ANALYSERS[analyserName];
         if (analyserConfig) {
-          return Promise.resolve(analyserConfig);
+          return resolve(analyserConfig);
         } else {
-          return Promise.reject(new Error(`Unknown analyser '${analyserName}'`));
+          return reject(`Unknown analyser '${analyserName}'`);
         }
       })
+  }
+
+  function resolve(stuff){
+    return Promise.resolve(stuff);
+  }
+  function reject(errMsg, err){
+    if(err && err.message){
+      return Promise.reject(Error(`${errMsg}\n${err.message}`, err));
+    } else {
+      return Promise.reject(Error(errMsg, err));
+    }
   }
 }
 

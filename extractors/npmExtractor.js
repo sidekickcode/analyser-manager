@@ -39,7 +39,7 @@ function NpmExtractor(){
         }
         specificVersionInfo = analyserInfo.versions[versionToInstall];
         if(!specificVersionInfo){
-          Promise.reject(Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`));
+          return doReject(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`);
         }
 
         var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
@@ -55,7 +55,7 @@ function NpmExtractor(){
             });
 
           }, function(err) {
-            Promise.reject(Error(`Unable to create analyser dir for analyser '${analyserName}'`, err));
+            return doReject(`Unable to create analyser dir for analyser '${analyserName}'`, err);
           })
       })
   };
@@ -63,7 +63,7 @@ function NpmExtractor(){
   self.getLatestVersion = function(analyserName){
     return fetchNpmInfoForAnalyser(analyserName)
       .then(function(analyserInfo){
-        return Promise.resolve(analyserInfo['dist-tags'].latest);
+        return doResolve(analyserInfo['dist-tags'].latest);
       })
   };
 
@@ -76,10 +76,10 @@ function NpmExtractor(){
           self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
           return Promise.resolve(self.ALL_ANALYSERS);
         } else {
-          Promise.reject(Error(`Unable to fetch analyser info for '${analyserName}'`, error));
+          return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
         }
       }, function(err){
-        return Promise.reject(Error(`Unable to fetch analyser info for '${analyserName}'`, error));
+        return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
       })
   }
 
@@ -99,7 +99,7 @@ function NpmExtractor(){
       request
         .get(tarballURL)
         .on('error', function(err) {
-          reject(new Error(`Unable to fetch tarball '${tarballURL}'`, err));
+          return reject(`Unable to fetch tarball '${tarballURL}'`, err);
         })
         .pipe(stream)
     });
@@ -122,13 +122,25 @@ function NpmExtractor(){
 
         self.emit('installing');
         unlink(tarball); //remove tarball (don't fail if we cant)
-        exec(`cd ${analyserDir}/package && ./bin/install`, puts); //run bin/install
+        var binInstallPath = path.join(analyserDir, '/package');
+        exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
       });
       read.on('error', reject);
       write.on('error', reject);
 
       read.pipe(write); //unzip then untar
     });
+  }
+
+  function doResolve(stuff){
+    return Promise.resolve(stuff);
+  }
+  function doReject(errMsg, err){
+    if(err && err.message){
+      return Promise.reject(Error(`${errMsg}\n${err.message}`, err));
+    } else {
+      return Promise.reject(Error(errMsg, err));
+    }
   }
 }
 inherits(NpmExtractor, EventEmitter);
