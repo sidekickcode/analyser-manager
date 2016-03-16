@@ -30,18 +30,19 @@ function NpmExtractor(){
     return fetchNpmInfoForAnalyser(analyserName)
       .then(function(analyserInfo){
         var specificVersionInfo, versionToInstall;
+
+        //get the version info for latest or a specific version
         if(analyserVersion === 'latest'){
           versionToInstall = analyserInfo['dist-tags'].latest;
-          specificVersionInfo = analyserInfo.versions[versionToInstall];
         } else {
-          specificVersionInfo = analyserInfo.versions[analyserVersion];
-          if(!specificVersionInfo){
-            Promise.reject(Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${analyserVersion}'`));
-          }
           versionToInstall = analyserVersion;
         }
+        specificVersionInfo = analyserInfo.versions[versionToInstall];
+        if(!specificVersionInfo){
+          Promise.reject(Error(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`));
+        }
 
-        var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${versionToInstall}`);
+        var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
         return mkdir(newAnalyserDir)
           .then(function(){
             var tarballURL = specificVersionInfo.dist.tarball;
