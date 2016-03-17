@@ -151,6 +151,12 @@ describe('analyser manager', function() {
       });
     });
 
+    it('finds all analysers in a .sidekickrc file', function(done) {
+      var repoConfig = fs.readJsonSync(path.join(__dirname, 'testRepoConfig.json'));
+      var analysers = am.getAllAnalysersForConfig(repoConfig);
+      expect(analysers.length).to.equal(6);
+      expect({"failCiOnError": false, "name": "sidekick-security", "version": "latest"}).to.be.oneOf(analysers);
+    });
 
     after(function(){
       var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
