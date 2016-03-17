@@ -49,11 +49,14 @@ function NpmExtractor(){
             var tarballName = resolveTarballName(tarballURL);
             var tarballFullPath = path.join(newAnalyserDir, tarballName);
 
-            return fetchAnalyserTarball(tarballURL, tarballFullPath).then(function(){
-              self.emit('downloaded');
-              return unpack(tarballFullPath, newAnalyserDir);
-            });
-
+            return fetchAnalyserTarball(tarballURL, tarballFullPath)
+              .then(function(){
+                self.emit('downloaded');
+                return unpack(tarballFullPath, newAnalyserDir)
+                  .then(function(){
+                    return install(newAnalyserDir);
+                  })
+              });
           }, function(err) {
             return doReject(`Unable to create analyser dir for analyser '${analyserName}'`, err);
           })
@@ -89,9 +92,9 @@ function NpmExtractor(){
   }
 
   function fetchAnalyserTarball(tarballURL, installLocation){
-    var stream = fs.createWriteStream(installLocation);
-
     return new Promise(function(resolve, reject){
+
+      var stream = fs.createWriteStream(installLocation);
       stream.on('finish', function(){
         resolve();
       });
@@ -107,28 +110,35 @@ function NpmExtractor(){
 
   function unpack(tarball, analyserDir){
     return new Promise(function(resolve, reject){
+
       var read = fs.createReadStream(tarball);
       var write = tgz().createWriteStream(analyserDir);
 
       write.on('finish', function(){
-        function puts(error, stdout, stderr) {
-          if(error){
-            reject(error);
-          } else {
-            self.emit('installed');
-            resolve();
-          }
-        }
-
-        self.emit('installing');
         unlink(tarball); //remove tarball (don't fail if we cant)
-        var binInstallPath = path.join(analyserDir, '/package');
-        exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
+        resolve();
       });
       read.on('error', reject);
       write.on('error', reject);
 
       read.pipe(write); //unzip then untar
+    });
+  }
+
+  function install(analyserDir){
+    return new Promise(function(resolve, reject){
+      function puts(error, stdout, stderr) {
+        if(error){
+          reject(error);
+        } else {
+          self.emit('installed');
+          resolve();
+        }
+      }
+
+      self.emit('installing');
+      var binInstallPath = path.join(analyserDir, '/package');
+      exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
     });
   }
 

@@ -3,14 +3,27 @@
         "node_modules"
     ],
     "languages": [
-        [
-            "sidekick-"
-        ],
-        [
-            "sidekick-"
-        ],
-        [
-            "sidekick-"
-        ]
+        {
+            "js": [
+                "sidekick-js-todos",
+                "sidekick-jscs",
+                "sidekick-eslint"
+            ]
+        },
+        {
+            "cs": [
+                "sidekick-coffeelint"
+            ]
+        },
+        {
+            "json": [
+                "sidekick-david"
+            ]
+        },
+        {
+            "all": [
+                "sidekick-security"
+            ]
+        }
     ]
 }
