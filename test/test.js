@@ -13,30 +13,6 @@ var AnalyserManger = require('../../analyser-manager');
 var analysersDir = path.join(__dirname, '/fixtures');
 var am;
 
-describe('install location', function() {
-
-  it('gets the correct paths', function(){
-    var installLocation = require('../installLocation');
-    var platform = require('process').platform;
-
-    switch(platform){
-      case "win32":
-        var re =/\\\\sidekick\\\\analysers$/i;
-        expect(installLocation()).to.match(re);
-        break;
-      case "darwin":
-        var re =/\/Library\/Application Support\/sidekick\/analysers$/i;
-        expect(installLocation()).to.match(re);
-        break;
-      case "linux":
-        var re =/\/var\/local\/sidekick\/analysers$/i;
-        expect(installLocation()).to.match(re);
-        break;
-    }
-  });
-
-});
-
 describe('analyser manager', function() {
 
   describe('positive tests', function() {
@@ -50,7 +26,7 @@ describe('analyser manager', function() {
 
     it('initialises - creates the analyser dir if it does not exist', function(done) {
       try {
-        am = new AnalyserManger(analysersDir); //override with test fixture dir
+        am = new AnalyserManger(analysersDir); //pass test fixture dir
         am.init().then(function(){
           fs.stat(analysersDir, function(err, data){
             expect(err).to.not.exist;

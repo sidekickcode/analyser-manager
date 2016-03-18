@@ -16,7 +16,6 @@ const requestCB = require('request');
 const semver = require('semver');
 const _ = require('lodash');
 
-const installLocation = require('./installLocation');
 const npmExtractor = require('./extractors/npmExtractor');
 
 const exists = Promise.promisify(fs.stat);
@@ -29,16 +28,11 @@ module.exports = exports = AnalyserManager;
 
 /**
  * Create instance
- * @param analyserInstallLocation (optional)
+ * @param analyserInstallLocation where to install the analysers to (absolute path)
  * @constructor
  */
 function AnalyserManager(analyserInstallLocation){
   var self = this;
-
-  //if the installation location if the analysers is not specified, use detault.
-  if(!analyserInstallLocation){
-    analyserInstallLocation = installLocation();
-  }
 
   EventEmitter.call(self);
 
