@@ -265,10 +265,10 @@ function AnalyserManager(analyserInstallLocation){
           return doReject(`Unknown registry '${analyserConfig.registry}'`);
         }
 
-        extractor.on('downloading', function(){self.emit('downloading')});
-        extractor.on('downloaded', function(){self.emit('downloaded')});
-        extractor.on('installing', function(){self.emit('installing')});
-        extractor.on('installed', function(){self.emit('installed')});
+        extractor.on('downloading', function(){self.emit('downloading', {"analyser": analyserName})});
+        extractor.on('downloaded', function(){self.emit('downloaded', {"analyser": analyserName})});
+        extractor.on('installing', function(){self.emit('installing', {"analyser": analyserName})});
+        extractor.on('installed', function(){self.emit('installed', {"analyser": analyserName})});
 
         return extractor.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
           .then(function(){

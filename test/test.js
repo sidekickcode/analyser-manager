@@ -244,7 +244,7 @@ describe('analyser manager', function() {
 /*    it('fails when we dont have write permission for the analyser dir', function(done) {
       fs.chmodSync(am.ANALYSER_INSTALL_DIR, 0755);
       try {
-        var newAM = require('../../analyser-manager');
+        var newAM = require('../../sidekick-analyser-manager');
       } catch(err){
       }
     });*/

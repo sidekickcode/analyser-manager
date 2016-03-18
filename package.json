@@ -1,5 +1,5 @@
 {
-  "name": "sidekick-analyser-manager",
+  "name": "analyser-manager",
   "version": "1.0.4",
   "description": "Installs and manages Sidekick analysers",
   "main": "index.js",
@@ -24,7 +24,7 @@
     "url": "https://github.com/sidekickcode/analyser-manager.git"
   },
   "author": "We Are Sidekick Ltd.",
-  "license": "AGPL-1.0",
+  "license": "AGPL-3.0",
   "dependencies": {
     "bluebird": "^3.3.4",
     "lodash": "^4.6.1",
