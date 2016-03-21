@@ -204,25 +204,7 @@ function AnalyserManager(analyserInstallLocation){
         }
       })
   };
-
-  self.getAllAnalysersForConfig = function(repoConfig){
-    var allAnalysers = _.uniq(_.flatten(_.map(repoConfig.languages, function(lang){
-      var analysersForLang = [];
-      _.forOwn(lang, function(value, key){
-        analysersForLang.push(value);
-      });
-      return _.uniq(_.flatten(analysersForLang));
-    })));
-
-    //make easy - array of {name: analyserName, analyserProp1: prop1Value,...}
-    var easy = _.map(allAnalysers, function(analyser){
-      var name = Object.keys(analyser)[0];  //only 1 prop {"sidekick-eslint": {config}}
-      var obj = {"name": name};
-      return _.defaults(obj, analyser[name]);
-    });
-    return easy;
-  };
-
+  
   /**
    * Read and parse the config for a locally installed analyser
    * @param analyserPath the abs path of the analyser config file
