@@ -109,10 +109,12 @@ function NpmExtractor(){
   }
 
   function unpack(tarball, analyserDir){
+    var gzipOptions = null;
+    var tarOptions = {"strip": 1};  //remove package dir wrapper
     return new Promise(function(resolve, reject){
 
       var read = fs.createReadStream(tarball);
-      var write = tgz().createWriteStream(analyserDir);
+      var write = tgz(gzipOptions, tarOptions).createWriteStream(analyserDir);
 
       write.on('finish', function(){
         unlink(tarball); //remove tarball (don't fail if we cant)
@@ -137,7 +139,7 @@ function NpmExtractor(){
       }
 
       self.emit('installing');
-      var binInstallPath = path.join(analyserDir, '/package');
+      var binInstallPath = analyserDir;
       exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
     });
   }

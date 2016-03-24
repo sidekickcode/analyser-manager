@@ -5,6 +5,8 @@
 
 "use strict";
 
+const proxyAll = require("@sidekick/common/eventHelpers").proxyAll;
+
 const fs = require('fs');
 const path = require('path');
 const EventEmitter = require('events');
@@ -186,31 +188,34 @@ function AnalyserManager(analyserInstallLocation){
   self.isNewerVersionAvailable = function(analyserName, version){
     return getAllAnalyserEntry(analyserName)
       .then(function(analyserConfig){
+        var extractor;
         if(analyserConfig.registry === 'npm') {
-          var npm = new npmExtractor();
-          return npm.getLatestVersion(analyserName)
-            .then(function(latestVersion){
-              if(semver.valid(version) && semver.valid(latestVersion)){
-                return doResolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
-              } else {
-                if(semver.valid(latestVersion)){
-                  //we were passed a garbage version - still useful to say what the latest version is
-                  return doResolve({"latest": latestVersion});
-                } else {
-                  return doReject(`Invalid version '${version}' for analyser '${analyserName}'`);
-                }
-              }
-            })
+          extractor = new npmExtractor();
         }
-      })
+        proxyAll(extractor, self);
+
+        return extractor.getLatestVersion(analyserName)
+          .then(function(latestVersion){
+            if(semver.valid(version) && semver.valid(latestVersion)){
+              return doResolve({"newer" : semver.lt(version, latestVersion), "latest": latestVersion});
+            } else {
+              if(semver.valid(latestVersion)){
+                //we were passed a garbage version - still useful to say what the latest version is
+                return doResolve({"latest": latestVersion});
+              } else {
+                return doReject(`Invalid version '${version}' for analyser '${analyserName}'`);
+              }
+            }
+          })
+        })
   };
-  
+
   /**
    * Read and parse the config for a locally installed analyser
    * @param analyserPath the abs path of the analyser config file
    */
   function readAnalyserConfig(analyserPath) {
-    var filePath = path.join(analyserPath, 'package', 'config.json');
+    var filePath = path.join(analyserPath, 'config.json');
 
     return readFile(filePath, {encoding: 'utf8'})
       .then(function(fileContents){
@@ -240,11 +245,7 @@ function AnalyserManager(analyserInstallLocation){
         } else {
           return doReject(`Unknown registry '${analyserConfig.registry}'`);
         }
-
-        extractor.on('downloading', function(){self.emit('downloading', {"analyser": analyserName})});
-        extractor.on('downloaded', function(){self.emit('downloaded', {"analyser": analyserName})});
-        extractor.on('installing', function(){self.emit('installing', {"analyser": analyserName})});
-        extractor.on('installed', function(){self.emit('installed', {"analyser": analyserName})});
+        proxyAll(extractor, self);
 
         return extractor.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
           .then(function(){
