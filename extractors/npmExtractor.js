@@ -26,64 +26,65 @@ function NpmExtractor(){
   EventEmitter.call(self);
 
   self.fetch = function(analyserName, analyserVersion, analyserInstallDir){
-    self.emit('downloading');
+    var eventData = {'analyser': analyserName, 'version': analyserVersion};
+    self.emit('downloading', eventData);
     return fetchNpmInfoForAnalyser(analyserName)
-      .then(function(analyserInfo){
-        var specificVersionInfo, versionToInstall;
+        .then(function(analyserInfo){
+          var specificVersionInfo, versionToInstall;
 
-        //get the version info for latest or a specific version
-        if(analyserVersion === 'latest'){
-          versionToInstall = analyserInfo['dist-tags'].latest;
-        } else {
-          versionToInstall = analyserVersion;
-        }
-        specificVersionInfo = analyserInfo.versions[versionToInstall];
-        if(!specificVersionInfo){
-          return doReject(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`);
-        }
+          //get the version info for latest or a specific version
+          if(analyserVersion === 'latest'){
+            versionToInstall = analyserInfo['dist-tags'].latest;
+          } else {
+            versionToInstall = analyserVersion;
+          }
+          specificVersionInfo = analyserInfo.versions[versionToInstall];
+          if(!specificVersionInfo){
+            return doReject(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`);
+          }
 
-        var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
-        return mkdir(newAnalyserDir)
-          .then(function(){
-            var tarballURL = specificVersionInfo.dist.tarball;
-            var tarballName = resolveTarballName(tarballURL);
-            var tarballFullPath = path.join(newAnalyserDir, tarballName);
-
-            return fetchAnalyserTarball(tarballURL, tarballFullPath)
+          var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
+          return mkdir(newAnalyserDir)
               .then(function(){
-                self.emit('downloaded');
-                return unpack(tarballFullPath, newAnalyserDir)
-                  .then(function(){
-                    return install(newAnalyserDir);
-                  })
-              });
-          }, function(err) {
-            return doReject(`Unable to create analyser dir for analyser '${analyserName}'`, err);
-          })
-      })
+                var tarballURL = specificVersionInfo.dist.tarball;
+                var tarballName = resolveTarballName(tarballURL);
+                var tarballFullPath = path.join(newAnalyserDir, tarballName);
+
+                return fetchAnalyserTarball(tarballURL, tarballFullPath)
+                    .then(function(){
+                      self.emit('downloaded', eventData);
+                      return unpack(tarballFullPath, newAnalyserDir)
+                          .then(function(){
+                            return install(newAnalyserDir, eventData);
+                          })
+                    });
+              }, function(err) {
+                return doReject(`Unable to create analyser dir for analyser '${analyserName}'`, err);
+              })
+        })
   };
 
   self.getLatestVersion = function(analyserName){
     return fetchNpmInfoForAnalyser(analyserName)
-      .then(function(analyserInfo){
-        return doResolve(analyserInfo['dist-tags'].latest);
-      })
+        .then(function(analyserInfo){
+          return doResolve(analyserInfo['dist-tags'].latest);
+        })
   };
 
   function fetchNpmInfoForAnalyser(analyserName){
     const NPM_URL = `https://registry.npmjs.org/${analyserName}`;
 
     return request(NPM_URL)
-      .then(function(response) {
-        if(response.statusCode == 200) {
-          self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
-          return Promise.resolve(self.ALL_ANALYSERS);
-        } else {
+        .then(function(response) {
+          if(response.statusCode == 200) {
+            self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
+            return Promise.resolve(self.ALL_ANALYSERS);
+          } else {
+            return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
+          }
+        }, function(err){
           return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
-        }
-      }, function(err){
-        return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
-      })
+        })
   }
 
   function resolveTarballName(tarballURL){
@@ -100,11 +101,11 @@ function NpmExtractor(){
       });
 
       request
-        .get(tarballURL)
-        .on('error', function(err) {
-          return reject(`Unable to fetch tarball '${tarballURL}'`, err);
-        })
-        .pipe(stream)
+          .get(tarballURL)
+          .on('error', function(err) {
+            return reject(`Unable to fetch tarball '${tarballURL}'`, err);
+          })
+          .pipe(stream)
     });
   }
 
@@ -127,18 +128,18 @@ function NpmExtractor(){
     });
   }
 
-  function install(analyserDir){
+  function install(analyserDir, eventData){
     return new Promise(function(resolve, reject){
       function puts(error, stdout, stderr) {
         if(error){
           reject(error);
         } else {
-          self.emit('installed');
+          self.emit('installed', eventData);
           resolve();
         }
       }
 
-      self.emit('installing');
+      self.emit('installing', eventData);
       var binInstallPath = analyserDir;
       exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
     });
