@@ -2,6 +2,9 @@ language: node_js
 node_js:
   - "5.1"
 
+script:
+- sidekick run --ci
+
 notifications:
   email: false
   slack: we-are-sidekick:GeIT5wtuKMLImpFXYHWzIGzI
