@@ -2,28 +2,28 @@
     "exclude": [
         "node_modules"
     ],
-    "languages": [
-        {
-            "js": [
-                "sidekick-js-todos",
-                "sidekick-jscs",
-                "sidekick-eslint"
-            ]
+    "languages": {
+      "js": {
+        "sidekick-js-todos": {
+          "failCiOnError": false,
+          "version": "1.0.1"
         },
-        {
-            "cs": [
-                "sidekick-coffeelint"
-            ]
+        "sidekick-jscs": {
+            "failCiOnError": false
         },
-        {
-            "json": [
-                "sidekick-david"
-            ]
-        },
-        {
-            "all": [
-                "sidekick-security"
-            ]
+        "sidekick-eslint": {
+            "failCiOnError": true
         }
-    ]
+      },
+      "cs": {
+        "sidekick-coffeelint": {
+            "failCiOnError": false
+        }
+      },
+      "json": {
+          "sidekick-david": {
+              "failCiOnError": false
+          }
+      }
+    }
 }

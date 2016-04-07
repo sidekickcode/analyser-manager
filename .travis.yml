@@ -3,7 +3,7 @@ node_js:
   - "5.1"
 
 script:
-- node sidekick run --ci
+- sidekick run --ci
 
 notifications:
   email: false
