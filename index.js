@@ -17,8 +17,10 @@ const jsonWithComments = require('strip-json-comments');
 const requestCB = require('request');
 const semver = require('semver');
 const _ = require('lodash');
+const debug = require('debug')('analyser-manager');
 
 const npmExtractor = require('./extractors/npmExtractor');
+const UnknownAnalyserError = require('./errors/UnknownAnalyserError');
 
 const exists = Promise.promisify(fs.stat);
 const canAccess = Promise.promisify(fs.access);
@@ -221,6 +223,37 @@ function AnalyserManager(analyserInstallLocation){
   };
 
   /**
+   * Validate a list of analysers - removing any unknown analysers
+   * @param analysers Array of possible analysers
+   * @retuns Array of known analysers
+   */
+  self.validateAnalyserList = function(analysers){
+    var validAnalysers = [];
+    debug('analysers: ' + JSON.stringify(analysers));
+
+    return new Promise(function(resolve, reject){
+      if(self.ALL_ANALYSERS){
+        doResolve();
+      } else {
+        self.fetchAnalyserList()
+          .then(function(ALL_ANALYSER){
+            debug('have analyser list: ' + ALL_ANALYSER);
+            doResolve();
+          });
+      }
+
+      function doResolve(){
+        _.each(analysers, function(analyser){
+          if(self.ALL_ANALYSERS[analyser.name]){
+            validAnalysers.push(analyser);
+          }
+        });
+        resolve(validAnalysers);
+      }
+    });
+  };
+
+  /**
    * Read and parse the config for a locally installed analyser
    * @param analyserPath the abs path of the analyser config file
    */
@@ -271,7 +304,7 @@ function AnalyserManager(analyserInstallLocation){
         if (analyserConfig) {
           return doResolve(analyserConfig);
         } else {
-          return doReject(`Unknown analyser '${analyserName}'`);
+          return Promise.reject(new UnknownAnalyserError(analyserName));
         }
       })
   }
@@ -286,6 +319,7 @@ function AnalyserManager(analyserInstallLocation){
       return Promise.reject(Error(errMsg, err));
     }
   }
+
 }
 
 inherits(AnalyserManager, EventEmitter);

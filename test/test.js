@@ -149,7 +149,8 @@ describe('analyser manager', function() {
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){
-        expect(err).to.have.property('message', `Unknown analyser '${analyserName}'`);
+        expect(err.name).to.equal('UnknownAnalyserError');
+        expect(err).to.have.property('message', `Unknown analyser: ${analyserName}`);
         done();
       });
     });
@@ -187,10 +188,10 @@ describe('analyser manager', function() {
       var version = 'garbage';
 
       am.isNewerVersionAvailable(analyserName, version).then(function(isNewer){
-        assert.fail('Should fail for garbage anlayser.');
+        assert.fail('Should fail for garbage analyser.');
         done();
       }, function(err){
-        var re =/Unknown analyser 'garbage-garbage'/i;
+        var re =/Unknown analyser: garbage-garbage/i;
         expect(err.message).to.match(re);
         done();
       });
