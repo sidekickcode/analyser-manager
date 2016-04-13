@@ -79,6 +79,7 @@ function AnalyserManager(analyserInstallLocation){
         })
     }
   };
+  
 
   /**
    * Fetch a list of all the analysers that Sidekick supports
