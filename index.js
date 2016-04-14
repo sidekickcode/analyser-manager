@@ -96,12 +96,15 @@ function AnalyserManager(analyserInstallLocation){
     return request(SK_CENTRAL_ANALYSER_LIST_URL)
       .then(function(response) {
         if(response.statusCode == 200) {
+          debug('have analysers list');
           self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
           return doResolve(self.ALL_ANALYSERS);
         } else {
-          return doReject('Unable to fetch list of analysers', err);
+          debug('analyser list unavailable: ' + response.statusCode);
+          return doReject('Unable to fetch list of analysers');
         }
       }, function(err){
+        debug('error fetching analyser list');
         return doReject('Unable to fetch list of analysers', err);
       })
   };
