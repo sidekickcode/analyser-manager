@@ -15,11 +15,6 @@
             "failCiOnError": true
         }
       },
-      "cs": {
-        "sidekick-coffeelint": {
-            "failCiOnError": false
-        }
-      },
       "json": {
           "sidekick-david": {
               "failCiOnError": false
