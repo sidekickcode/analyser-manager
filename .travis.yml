@@ -4,6 +4,7 @@ node_js:
   - "4.2"
 
 script:
+  - npm test
   - sidekick run --ci
 
 notifications:
