@@ -26,7 +26,7 @@
   "author": "We Are Sidekick Ltd.",
   "license": "AGPL-3.0",
   "dependencies": {
-    "@sidekick/common": "^3.2.0",
+    "@sidekick/common": "3.3.0",
     "bluebird": "2.9.34",
     "lodash": "3.10.1",
     "request": "^2.69.0",

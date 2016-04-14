@@ -50,21 +50,26 @@ function AnalyserManager(analyserInstallLocation){
   self.init = function() {
     return exists(self.ANALYSER_INSTALL_DIR)
       .then(function(){
+        debug('install dir exists');
         return canWrite(self.ANALYSER_INSTALL_DIR)
           .then(function(){
+            debug('install dir writeable');
             return self.fetchAnalyserList();
           })
         },
-        function(err){
+        function(){
+          debug('install dir does not exists');
           return mkdir(self.ANALYSER_INSTALL_DIR)
             .then(function(){
+              debug('install dir now exists');
               return canWrite(self.ANALYSER_INSTALL_DIR)
                 .then(function(){
+                  debug('install dir now writeable');
                   return self.fetchAnalyserList();
                 })
             })
-            .catch(function(err){
-              return doReject('Unable to create sidekick analyser directory', err);
+            .catch(function(cantMakeDirErr){
+              return doReject(`Unable to create sidekick analyser directory: ${self.ANALYSER_INSTALL_DIR}`, cantMakeDirErr);
             })
         }
       );
