@@ -69,7 +69,7 @@ function AnalyserManager(analyserInstallLocation){
                 })
             })
             .catch(function(cantMakeDirErr){
-              return doReject(`Unable to create sidekick analyser directory: ${self.ANALYSER_INSTALL_DIR}`, cantMakeDirErr);
+              return doReject(`Error creatomh sidekick analyser directory: ${self.ANALYSER_INSTALL_DIR}`, cantMakeDirErr);
             })
         }
       );
@@ -100,7 +100,7 @@ function AnalyserManager(analyserInstallLocation){
           self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
           return doResolve(self.ALL_ANALYSERS);
         } else {
-          debug('analyser list unavailable: ' + response.statusCode);
+          debug('analyser list unavailable: ' + JSON.stringify(response, null, 4));
           return doReject('Unable to fetch list of analysers');
         }
       }, function(err){
