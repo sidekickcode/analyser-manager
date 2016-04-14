@@ -41,7 +41,7 @@ function AnalyserManager(analyserInstallLocation){
   EventEmitter.call(self);
 
   self.ANALYSER_INSTALL_DIR = analyserInstallLocation;
-  self.ALL_ANALYSERS;
+  self.ALL_ANALYSERS = null;
 
   /**
    * Initialise the all analyser cache, create the analysers dir etc..
@@ -96,8 +96,8 @@ function AnalyserManager(analyserInstallLocation){
     return request(SK_CENTRAL_ANALYSER_LIST_URL)
       .then(function(response) {
         if(response.statusCode == 200) {
-          debug('have analysers list');
           self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
+          debug('have analysers list: ');
           return doResolve(self.ALL_ANALYSERS);
         } else {
           debug('analyser list unavailable: ' + JSON.stringify(response, null, 4));
@@ -238,23 +238,28 @@ function AnalyserManager(analyserInstallLocation){
    */
   self.validateAnalyserList = function(analysers){
     var validAnalysers = [];
-    debug('analysers: ' + JSON.stringify(analysers));
+    debug('analysers to validate: ' + JSON.stringify(analysers));
 
     return new Promise(function(resolve, reject){
       if(self.ALL_ANALYSERS){
+        debug('have analyser list');
         doResolve();
       } else {
         self.fetchAnalyserList()
           .then(function(ALL_ANALYSER){
-            debug('have analyser list: ' + ALL_ANALYSER);
+            debug('have fetched analyser list: ' + ALL_ANALYSER);
             doResolve();
           });
       }
 
       function doResolve(){
+        debug('resolving..');
         _.each(analysers, function(analyser){
-          if(self.ALL_ANALYSERS[analyser.name]){
-            validAnalysers.push(analyser);
+          debug('resolving ' + JSON.stringify(analyser));
+          if(analyser.name){
+            if(self.ALL_ANALYSERS[analyser.name]){
+              validAnalysers.push(analyser);
+            }
           }
         });
         resolve(validAnalysers);
