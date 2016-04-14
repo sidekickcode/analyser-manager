@@ -69,7 +69,7 @@ describe('analyser manager', function() {
       var installed = sinon.spy();
       am.on('installed', installed);
 
-      am.installAnalyser(analyserName).then(function(analyserConfig){
+      am.installAnalyser({name: analyserName}).then(function(analyserConfig){
 
         goodVersion = analyserConfig.config.version;
         expect(analyserConfig).to.have.property('path');
@@ -91,7 +91,7 @@ describe('analyser manager', function() {
       var analyserName = 'sidekick-david';
       knownVersion = '1.0.3';
 
-      am.installAnalyser(analyserName, knownVersion).then(function(analyserConfig){
+      am.installAnalyser({name: analyserName, version: knownVersion}).then(function(analyserConfig){
         expect(analyserConfig).to.have.property('path');
         expect(analyserConfig).to.have.property('config');
         expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
@@ -145,7 +145,7 @@ describe('analyser manager', function() {
     it('fails to install for an unknown analyser', function(done) {
       var analyserName = 'rubbish-subbish-analyser';
 
-      am.installAnalyser(analyserName).then(function(analyserConfig){
+      am.installAnalyser({name: analyserName}).then(function(analyserConfig){
         assert.fail('Should fail for unknown analyser: ' + analyserName);
         done();
       }, function(err){

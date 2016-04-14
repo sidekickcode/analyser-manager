@@ -165,37 +165,37 @@ function AnalyserManager(analyserInstallLocation){
    * @param version (optional) the specific version of the analyser to return data for.
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
-  self.installAnalyser = function(analyserName, version){
+  self.installAnalyser = function(analyser){
     var haveVersion;
-    if(!version || version === 'latest'){
-      haveVersion = self.isNewerVersionAvailable(analyserName);
+    if(!analyser.version || analyser.version === 'latest'){
+      haveVersion = self.isNewerVersionAvailable(analyser.name);
     } else {
-      haveVersion = Promise.resolve({"latest": version});
+      haveVersion = Promise.resolve({"latest": analyser.version});
     }
 
-    return haveVersion.then(function(latest){
-      var versionToInstall = latest.latest;
-      var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyserName}@${versionToInstall}`);
+    return haveVersion.then(function(version){
+      var versionToInstall = version.latest;
+      var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyser.name}@${versionToInstall}`);
 
       return exists(pathToAnalyser) //checks for @latest as well as specific version
-          .then(function(fileStat){
-                return readAnalyserConfig(pathToAnalyser)
+        .then(function(fileStat){
+            return readAnalyserConfig(pathToAnalyser)
+                .then(function(configObj){
+                  return doResolve({path: pathToAnalyser, config: configObj});
+                });
+            },
+            function(err){
+              if(err.code === 'ENOENT'){
+                //no specific version dir or @latest dir
+                return _installAnalyser(analyser, versionToInstall)
                     .then(function(configObj){
                       return doResolve({path: pathToAnalyser, config: configObj});
                     });
-              },
-              function(err){
-                if(err.code === 'ENOENT'){
-                  //no specific version dir or @latest dir
-                  return _installAnalyser(analyserName, versionToInstall)
-                      .then(function(configObj){
-                        return doResolve({path: pathToAnalyser, config: configObj});
-                      });
-                } else {
-                  return doReject('Cannot read analyser install dir', err);
-                }
+              } else {
+                return doReject('Cannot read analyser install dir', err);
               }
-          )
+            }
+        )
     });
 
   };
@@ -281,13 +281,13 @@ function AnalyserManager(analyserInstallLocation){
       });
   }
 
-  function _installAnalyser(analyserName, version){
-    return getAllAnalyserEntry(analyserName)
+  function _installAnalyser(analyser, version){
+    return getAllAnalyserEntry(analyser.name)
       .then(function(analyserConfig){
         var config = analyserConfig.config; //strip the wrapper which includes registry etc..
 
         if(version !== 'latest' && !semver(version)) {
-          return doReject(`Invalid version '${version}' for analyser '${analyserName}'`);
+          return doReject(`Invalid version '${version}' for analyser '${analyser.name}'`);
         }
 
         var extractor;
@@ -299,7 +299,7 @@ function AnalyserManager(analyserInstallLocation){
         }
         proxyAll(extractor, self);
 
-        return extractor.fetch(analyserName, version, self.ANALYSER_INSTALL_DIR)
+        return extractor.fetch(analyser, version, self.ANALYSER_INSTALL_DIR)
           .then(function(){
             return doResolve(config);  //return the newly installed analyser config
           })

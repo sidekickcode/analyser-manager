@@ -25,10 +25,10 @@ function NpmExtractor(){
 
   EventEmitter.call(self);
 
-  self.fetch = function(analyserName, analyserVersion, analyserInstallDir){
-    var eventData = {'analyser': analyserName, 'version': analyserVersion};
+  self.fetch = function(analyser, analyserVersion, analyserInstallDir){
+    var eventData = {'analyser': analyser.name, 'version': analyserVersion, 'canFailCi': analyser.failCiOnError};
     self.emit('downloading', eventData);
-    return fetchNpmInfoForAnalyser(analyserName)
+    return fetchNpmInfoForAnalyser(analyser.name)
         .then(function(analyserInfo){
           var specificVersionInfo, versionToInstall;
 
@@ -40,10 +40,10 @@ function NpmExtractor(){
           }
           specificVersionInfo = analyserInfo.versions[versionToInstall];
           if(!specificVersionInfo){
-            return doReject(`Invalid version for analyser '${analyserName}'. npm does not have version '${versionToInstall}'`);
+            return doReject(`Invalid version for analyser '${analyser.name}'. npm does not have version '${versionToInstall}'`);
           }
 
-          var newAnalyserDir = path.join(analyserInstallDir, `${analyserName}@${analyserVersion}`);
+          var newAnalyserDir = path.join(analyserInstallDir, `${analyser.name}@${analyserVersion}`);
           return mkdir(newAnalyserDir)
               .then(function(){
                 var tarballURL = specificVersionInfo.dist.tarball;
@@ -59,7 +59,7 @@ function NpmExtractor(){
                           })
                     });
               }, function(err) {
-                return doReject(`Unable to create analyser dir for analyser '${analyserName}'`, err);
+                return doReject(`Unable to create analyser dir for analyser '${analyser.name}'`, err);
               })
         })
   };
