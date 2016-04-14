@@ -27,12 +27,12 @@
   "license": "AGPL-3.0",
   "dependencies": {
     "@sidekick/common": "3.3.0",
-    "bluebird": "2.9.34",
+    "bluebird": "3.3.4",
     "lodash": "3.10.1",
-    "request": "^2.69.0",
-    "semver": "^5.1.0",
-    "strip-json-comments": "^2.0.1",
-    "tar.gz": "^1.0.3"
+    "request": "2.69.0",
+    "semver": "5.1.0",
+    "strip-json-comments": "2.0.1",
+    "tar.gz": "1.0.3"
   },
   "devDependencies": {
     "chai": "^3.5.0",

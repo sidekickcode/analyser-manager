@@ -69,7 +69,7 @@ function AnalyserManager(analyserInstallLocation){
                 })
             })
             .catch(function(cantMakeDirErr){
-              return doReject(`Error creatomh sidekick analyser directory: ${self.ANALYSER_INSTALL_DIR}`, cantMakeDirErr);
+              return doReject(`Unable to create sidekick analyser directory: ${self.ANALYSER_INSTALL_DIR}`, cantMakeDirErr);
             })
         }
       );
