@@ -44,13 +44,12 @@ describe('analyser manager', function() {
 
     });
 
-    it('fetches the canonical config for an existing analyser', function(done) {
+    it('fetches the canonical config for an existing analyser', function() {
       var analyserName = 'sidekick-david';
 
       am.fetchCanonicalAnalyserConfig(analyserName).then(function(analyserConfig){
         expect(analyserConfig).to.have.property('registry', 'npm');
         expect(analyserConfig).to.have.deep.property('config.shortName', 'david-dm');
-        done();
       });
     });
 

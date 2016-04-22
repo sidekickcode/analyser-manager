@@ -91,22 +91,38 @@ function AnalyserManager(analyserInstallLocation){
    * @returns {bluebird|exports|module.exports}
    */
   self.fetchAnalyserList = function(){
-    const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/sidekickcode/analysers/master/analysers.json';
+    const REPO_SLUG = "sidekickcode/analysers/master/analysers.json";
+    const RAWGIT_SK_CENTRAL_ANALYSER_LIST_URL = 'https://cdn.rawgit.com/' + REPO_SLUG;
+    const SK_CENTRAL_ANALYSER_LIST_URL = 'https://raw.githubusercontent.com/' + REPO_SLUG;
 
-    return request(SK_CENTRAL_ANALYSER_LIST_URL)
-      .then(function(response) {
-        if(response.statusCode == 200) {
-          self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
-          debug('have analysers list: ');
-          return doResolve(self.ALL_ANALYSERS);
-        } else {
-          debug('analyser list unavailable: ' + JSON.stringify(response, null, 4));
-          return doReject('Unable to fetch list of analysers');
-        }
-      }, function(err){
-        debug('error fetching analyser list');
-        return doReject('Unable to fetch list of analysers', err);
-      })
+    return fetchList(RAWGIT_SK_CENTRAL_ANALYSER_LIST_URL)
+      .then((allAnalysers) => {
+        debug('have analysers list from rawgit: ');
+        self.ALL_ANALYSERS = allAnalysers;
+        return doResolve(self.ALL_ANALYSERS);
+      }, () => {  //.error() didn't work - weird
+        return fetchList(SK_CENTRAL_ANALYSER_LIST_URL)
+          .then((allAnalysers) => {
+            debug('have analysers list from github: ');
+            self.ALL_ANALYSERS = allAnalysers;
+            return doResolve(self.ALL_ANALYSERS);
+          });
+      });
+
+    function fetchList(URL){
+      return request(URL)
+        .then(function(response) {
+          if(response.statusCode == 200) {
+            return JSON.parse(jsonWithComments(response.body));
+          } else {
+            debug('analyser list unavailable: ' + JSON.stringify(response, null, 4));
+            return doReject('Unable to fetch list of analysers');
+          }
+        }, function(err){
+          debug('error fetching analyser list');
+          return doReject('Unable to fetch list of analysers', err);
+        })
+    }
   };
 
   /**
