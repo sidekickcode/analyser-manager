@@ -126,6 +126,19 @@ describe('analyser manager', function() {
       });
     });
 
+    it('finds the latest version of an installed analyser', function() {
+      var analyserName = 'sidekick-david';
+
+      //we have already installed sidekick-david 1.0.3 (known version) and the latest version
+
+      return am.isNewerVersionAvailable(analyserName).then(function(isNewer){
+        var latestVersion = isNewer.latest;
+
+        const supposedLatestVersion = am.getLatestVersionOfInstalledAnalyser(analyserName);
+        expect(latestVersion).to.equal(supposedLatestVersion);
+        });
+    });
+
     after(function(){
       var goodAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${goodVersion}`);
       var versionedAnalyserDir = path.join(am.ANALYSER_INSTALL_DIR, `sidekick-david@${knownVersion}`);

@@ -7,7 +7,7 @@
 
 const proxyAll = require("@sidekick/common/eventHelpers").proxyAll;
 
-const fs = require('fs');
+const fs = require('fs-extra');
 const path = require('path');
 const EventEmitter = require('events');
 const inherits = require('util').inherits;
@@ -23,6 +23,7 @@ const npmExtractor = require('./extractors/npmExtractor');
 const UnknownAnalyserError = require('./errors/UnknownAnalyserError');
 
 const exists = Promise.promisify(fs.stat);
+const remove = Promise.promisify(fs.remove);
 const canAccess = Promise.promisify(fs.access);
 const readFile = Promise.promisify(fs.readFile);
 const mkdir = Promise.promisify(fs.mkdir);
@@ -177,11 +178,11 @@ function AnalyserManager(analyserInstallLocation){
    * Install the analyser from a registry.
    * If the analyser already exists locally (same version) then we just return the config.
    * If no version specified it will install the latest version.
-   * @param analyserName the name of the analyser to fetch the config for
-   * @param version (optional) the specific version of the analyser to return data for.
+   * @param analyser {name, version} the name of the analyser to fetch the config for
+   * @param force (optional) override the existing analysers found in the install location.
    * @returns Promise {path: [abs path to analyser], config: [analyser config]}
    */
-  self.installAnalyser = function(analyser){
+  self.installAnalyser = function(analyser, force){
     var haveVersion;
     if(!analyser.version || analyser.version === 'latest'){
       haveVersion = self.isNewerVersionAvailable(analyser.name);
@@ -193,12 +194,22 @@ function AnalyserManager(analyserInstallLocation){
       var versionToInstall = version.latest;
       var pathToAnalyser = path.join(self.ANALYSER_INSTALL_DIR, `${analyser.name}@${versionToInstall}`);
 
-      return exists(pathToAnalyser) //checks for @latest as well as specific version
-        .then(function(fileStat){
-            return readAnalyserConfig(pathToAnalyser)
-                .then(function(configObj){
-                  return doResolve({path: pathToAnalyser, config: configObj});
-                });
+      return exists(pathToAnalyser) //checks for specific version
+        .then(function(fileStat) {
+              if(force){
+                return remove(pathToAnalyser)
+                    .then(() => {
+                      return _installAnalyser(analyser, versionToInstall)
+                          .then(function (configObj) {
+                            return doResolve({path: pathToAnalyser, config: configObj});
+                          });
+                    })
+              } else {
+                return readAnalyserConfig(pathToAnalyser)
+                    .then(function (configObj) {
+                      return doResolve({path: pathToAnalyser, config: configObj});
+                    });
+              }
             },
             function(err){
               if(err.code === 'ENOENT'){
@@ -281,6 +292,55 @@ function AnalyserManager(analyserInstallLocation){
         resolve(validAnalysers);
       }
     });
+  };
+
+  /**
+   * Finds the latest version of an installed analyser by comparing directory names.
+   * e.g. if a dire contains my-analyser@1.0.2 and my-analyser@1.10.0, then '1.10.0' will be returned
+   * @param analyserName the name of the analyser to search for
+   * @returns String
+   */
+  self.getLatestVersionOfInstalledAnalyser = function(analyserName){
+    //find all dirs that start with analyserName
+    const allAnalyserDirs = getDirectories(self.ANALYSER_INSTALL_DIR, analyserName);
+
+    if(allAnalyserDirs.length === 0){
+      return null;
+    } else {
+      const versions = _.map(allAnalyserDirs, function(dir){
+        return dir.substr(dir.indexOf('@') + 1);
+      });
+      _.remove(versions, function(version){
+        return !semver.valid(version);
+      });
+
+      const ascVersions =_.sortBy(versions, function(version){
+        return version;
+      });
+
+      return ascVersions[ascVersions.length -1];
+    }
+
+    function getDirectories(basePath, analyserName) {
+      if(isDir(basePath)){
+        return fs.readdirSync(basePath).filter(function(file) {
+          const stat = fs.statSync(path.join(basePath, file));
+          const re = new RegExp(`^${analyserName}@`, "i");
+          return stat.isDirectory() && re.test(file);
+        });
+      } else {
+        return [];
+      }
+    }
+
+    function isDir(dir){
+      try {
+        var stat = fs.statSync(dir);
+        return stat !== undefined;
+      } catch (e){
+        return false;
+      }
+    }
   };
 
   /**
