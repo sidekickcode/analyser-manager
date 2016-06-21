@@ -14,6 +14,8 @@ const Promise = require('bluebird');
 const jsonWithComments = require('strip-json-comments');
 const requestCB = require('request');
 
+const os = require('@sidekick/common/os');
+
 const request = Promise.promisify(requestCB);
 const mkdir = Promise.promisify(fs.mkdir);
 const unlink = Promise.promisify(fs.unlink);
@@ -141,7 +143,11 @@ function NpmExtractor(){
 
       self.emit('installing', eventData);
       var binInstallPath = analyserDir;
-      exec(`cd "${binInstallPath}" && ./bin/install`, puts); //run bin/install
+      var cmd = `cd "${binInstallPath}" && ./bin/install`;  //run bin/install
+      if(!os.isPosix()){
+        cmd = cmd + '.cmd'; //run /bin/install.cmd
+      }
+      exec(cmd, puts);
     });
   }
 
