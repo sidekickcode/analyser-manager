@@ -143,11 +143,8 @@ function NpmExtractor(){
 
       self.emit('installing', eventData);
       var binInstallPath = analyserDir;
-      var cmd = `cd "${binInstallPath}" && ./bin/install`;  //run bin/install
-      if(!os.isPosix()){
-        cmd = cmd + '.cmd'; //run /bin/install.cmd
-      }
-      exec(cmd, puts);
+      var cmd = os.isPosix() ? `cd "${binInstallPath}" && ./bin/install` : `cd "${binInstallPath}" && bin\\install.cmd`;
+      exec(cmd, puts); //run bin/install
     });
   }
 
