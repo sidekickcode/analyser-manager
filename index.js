@@ -332,14 +332,21 @@ function AnalyserManager(analyserInstallLocation){
         return [];
       }
     }
+  };
 
-    function isDir(dir){
-      try {
-        var stat = fs.statSync(dir);
-        return stat !== undefined;
-      } catch (e){
-        return false;
-      }
+  /**
+   * Gets a list of all the installed analysers (name only)
+   * @returns Array
+   */
+  self.getAllInstalledAnalysers = function(){
+    if(isDir(self.ANALYSER_INSTALL_DIR)){
+      return fs.readdirSync(self.ANALYSER_INSTALL_DIR).filter(function(file) {
+        const stat = fs.statSync(path.join(self.ANALYSER_INSTALL_DIR, file));
+        const re = new RegExp(`@`, "i");
+        return stat.isDirectory() && re.test(file);
+      });
+    } else {
+      return [];
     }
   };
 
@@ -397,6 +404,15 @@ function AnalyserManager(analyserInstallLocation){
           return Promise.reject(new UnknownAnalyserError(analyserName));
         }
       })
+  }
+
+  function isDir(dir){
+    try {
+      var stat = fs.statSync(dir);
+      return stat !== undefined;
+    } catch (e){
+      return false;
+    }
   }
 
   function doResolve(stuff){
