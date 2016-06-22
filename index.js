@@ -26,7 +26,7 @@ const exists = Promise.promisify(fs.stat);
 const remove = Promise.promisify(fs.remove);
 const canAccess = Promise.promisify(fs.access);
 const readFile = Promise.promisify(fs.readFile);
-const mkdir = Promise.promisify(fs.mkdir);
+const mkdirs = Promise.promisify(fs.mkdirs);
 const request = Promise.promisify(requestCB);
 
 module.exports = exports = AnalyserManager;
@@ -60,7 +60,7 @@ function AnalyserManager(analyserInstallLocation){
         },
         function(){
           debug('install dir does not exists');
-          return mkdir(self.ANALYSER_INSTALL_DIR)
+          return mkdirs(self.ANALYSER_INSTALL_DIR)  //mkdirs === mkdir -p so hierarchy also gets created
             .then(function(){
               debug('install dir now exists');
               return canWrite(self.ANALYSER_INSTALL_DIR)

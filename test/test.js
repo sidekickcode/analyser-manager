@@ -10,7 +10,7 @@ var fs = require('fs-extra');
 var path = require('path');
 
 var AnalyserManger = require('../../analyser-manager');
-var analysersDir = path.join(__dirname, '/fixtures');
+var analysersDir = path.join(__dirname, '/idontexist/fixtures');
 var am;
 
 describe('analyser manager', function() {
