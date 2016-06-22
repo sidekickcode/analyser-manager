@@ -231,8 +231,9 @@ describe('analyser manager', function() {
       }
     });*/
 
-    after(function(){
+    after(function(done){
       fs.removeSync(analysersDir)
+      done();
     });
 
   });
