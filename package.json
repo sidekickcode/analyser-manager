@@ -1,6 +1,6 @@
 {
   "name": "@sidekick/analyser-manager",
-  "version": "2.2.5",
+  "version": "2.2.6",
   "description": "Installs and manages Sidekick analysers",
   "main": "index.js",
   "directories": {
