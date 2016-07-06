@@ -82,10 +82,10 @@ function NpmExtractor(){
             self.ALL_ANALYSERS = JSON.parse(jsonWithComments(response.body));
             return Promise.resolve(self.ALL_ANALYSERS);
           } else {
-            return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
+            return doReject(`Unable to fetch analyser info for '${analyserName}', status: ${response.statusCode}`);
           }
         }, function(err){
-          return doReject(`Unable to fetch analyser info for '${analyserName}'`, error);
+          return doReject(`Unable to fetch analyser info for '${analyserName}'`, err);
         })
   }
 
